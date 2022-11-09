@@ -309,7 +309,107 @@
   <div id="article" class="post-content-info">
     
 
-    <h2 id="HTTP状态码"><a href="#HTTP状态码" class="headerlink" title="HTTP状态码"></a>HTTP状态码</h2><table>
+    <h2 id="排序算法"><a href="#排序算法" class="headerlink" title="排序算法"></a>排序算法</h2><img src="/2022/10/02/HTTP/image-20221106203318300.png" class="" title="image-20221106203318300">
+
+<img src="/2022/10/02/HTTP/image-20221106203536196.png" class="" title="image-20221106203536196">
+
+<h2 id="快排"><a href="#快排" class="headerlink" title="快排"></a>快排</h2><ol>
+<li>从序列中<strong>随机</strong>挑出一个元素，做为 “基准”(<code>pivot</code>)；</li>
+<li>重新排列序列，将所有比基准值小的元素摆放在基准前面，所有比基准值大的摆在基准的后面（相同的数可以到任一边）。在这个操作结束之后，该基准就处于数列的中间位置。这个称为分区（partition）操作；</li>
+<li>递归地把小于基准值元素的子序列和大于基准值元素的子序列进行快速排序</li>
+</ol>
+<pre><code class="java">public static int partition(int[] array, int low, int high) &#123;
+    int pivot = array[high];
+    int pointer = low;
+    for (int i = low; i &lt; high; i++) &#123;
+        if (array[i] &lt;= pivot) &#123;
+            int temp = array[i];
+            array[i] = array[pointer];
+            array[pointer] = temp;
+            pointer++;
+        &#125;
+        System.out.println(Arrays.toString(array));
+    &#125;
+    int temp = array[pointer];
+    array[pointer] = array[high];
+    array[high] = temp;
+    return pointer;
+&#125;
+public static void quickSort(int[] array, int low, int high) &#123;
+    if (low &lt; high) &#123;
+        int position = partition(array, low, high);
+        quickSort(array, low, position - 1);
+        quickSort(array, position + 1, high);
+    &#125;
+&#125;
+</code></pre>
+<h2 id="堆排"><a href="#堆排" class="headerlink" title="堆排"></a>堆排</h2><ol>
+<li><p>如果输入内只有一个元素，则直接返回，否则将长度为 <code>n</code> 的输入序列分成两个长度为 <code>n/2</code> 的子序列；</p>
+</li>
+<li><p>分别对这两个子序列进行归并排序，使子序列变为有序状态；</p>
+</li>
+<li><p>设定两个指针，分别指向两个已经排序子序列的起始位置；</p>
+</li>
+<li><p>比较两个指针所指向的元素，选择相对小的元素放入到合并空间（用于存放排序结果），并移动指针到下一位置；</p>
+</li>
+<li><p>重复步骤 3 ~4 直到某一指针达到序列尾；</p>
+</li>
+<li><p>将另一序列剩下的所有元素直接复制到合并序列尾</p>
+<pre><code class="java">/**
+ * 归并排序
+ *
+ * @param arr
+ * @return arr
+ */
+public static int[] mergeSort(int[] arr) &#123;
+    if (arr.length &lt;= 1) &#123;
+        return arr;
+    &#125;
+    int middle = arr.length / 2;
+    int[] arr_1 = Arrays.copyOfRange(arr, 0, middle);
+    int[] arr_2 = Arrays.copyOfRange(arr, middle, arr.length);
+    return merge(mergeSort(arr_1), mergeSort(arr_2));
+&#125;
+
+/**
+ * Merge two sorted arrays
+ *
+ * @param arr_1
+ * @param arr_2
+ * @return sorted_arr
+ */
+public static int[] merge(int[] arr_1, int[] arr_2) &#123;
+    int[] sorted_arr = new int[arr_1.length + arr_2.length];
+    int idx = 0, idx_1 = 0, idx_2 = 0;
+    while (idx_1 &lt; arr_1.length &amp;&amp; idx_2 &lt; arr_2.length) &#123;
+        if (arr_1[idx_1] &lt; arr_2[idx_2]) &#123;
+            sorted_arr[idx] = arr_1[idx_1];
+            idx_1 += 1;
+        &#125; else &#123;
+            sorted_arr[idx] = arr_2[idx_2];
+            idx_2 += 1;
+        &#125;
+        idx += 1;
+    &#125;
+    if (idx_1 &lt; arr_1.length) &#123;
+        while (idx_1 &lt; arr_1.length) &#123;
+            sorted_arr[idx] = arr_1[idx_1];
+            idx_1 += 1;
+            idx += 1;
+        &#125;
+    &#125; else &#123;
+        while (idx_2 &lt; arr_2.length) &#123;
+            sorted_arr[idx] = arr_2[idx_2];
+            idx_2 += 1;
+            idx += 1;
+        &#125;
+    &#125;
+    return sorted_arr;
+&#125;
+</code></pre>
+</li>
+</ol>
+<h2 id="HTTP状态码"><a href="#HTTP状态码" class="headerlink" title="HTTP状态码"></a>HTTP状态码</h2><table>
 <thead>
 <tr>
 <th></th>
@@ -344,7 +444,712 @@
 </tr>
 </tbody></table>
 <h2 id="与HTTP协作的Web服务器"><a href="#与HTTP协作的Web服务器" class="headerlink" title="与HTTP协作的Web服务器"></a>与HTTP协作的Web服务器</h2><p>HTTP&#x2F;1.1规范允许一台HTTP服务器搭建多个Web站点</p>
-<h2 id="HTTPS"><a href="#HTTPS" class="headerlink" title="HTTPS"></a>HTTPS</h2>
+<h2 id="HTTP1-0与HTTP1-1区别"><a href="#HTTP1-0与HTTP1-1区别" class="headerlink" title="HTTP1.0与HTTP1.1区别"></a>HTTP1.0与HTTP1.1区别</h2><ul>
+<li><strong>连接方式</strong> : HTTP 1.0 为短连接，HTTP 1.1 支持长连接。</li>
+<li><strong>状态响应码</strong> : HTTP&#x2F;1.1中新加入了大量的状态码，光是错误响应状态码就新增了24种。比如说，<code>100 (Continue)</code>——在请求大资源前的预热请求，<code>206 (Partial Content)</code>——范围请求的标识码，<code>409 (Conflict)</code>——请求与当前资源的规定冲突，<code>410 (Gone)</code>——资源已被永久转移，而且没有任何已知的转发地址。</li>
+<li><strong>缓存处理</strong> : 在 HTTP1.0 中主要使用 header 里的 If-Modified-Since,Expires 来做为缓存判断的标准，HTTP1.1 则引入了更多的缓存控制策略例如 Entity tag，If-Unmodified-Since, If-Match, If-None-Match 等更多可供选择的缓存头来控制缓存策略。</li>
+<li><strong>带宽优化及网络连接的使用</strong> :HTTP1.0 中，存在一些浪费带宽的现象，例如客户端只是需要某个对象的一部分，而服务器却将整个对象送过来了，并且不支持断点续传功能，HTTP1.1 则在请求头引入了 range 头域，它允许只请求资源的某个部分，即返回码是 206（Partial Content），这样就方便了开发者自由的选择以便于充分利用带宽和连接。</li>
+<li><strong>Host头处理</strong> : HTTP&#x2F;1.1在请求头中加入了<code>Host</code>字段。</li>
+</ul>
+<h2 id="HTTPS与HTTP的区别"><a href="#HTTPS与HTTP的区别" class="headerlink" title="HTTPS与HTTP的区别"></a>HTTPS与HTTP的区别</h2><ul>
+<li><strong>端口号</strong> ：HTTP 默认是 80，HTTPS 默认是 443。</li>
+<li><strong>URL 前缀</strong> ：HTTP 的 URL 前缀是 <code>http://</code>，HTTPS 的 URL 前缀是 <code>https://</code>。</li>
+<li><strong>安全性和资源消耗</strong> ： HTTP 协议运行在 TCP 之上，所有传输的内容都是明文，客户端和服务器端都无法验证对方的身份。HTTPS 是运行在 SSL&#x2F;TLS 之上的 HTTP 协议，SSL&#x2F;TLS 运行在 TCP 之上。所有传输的内容都经过加密，加密采用对称加密，但对称加密的密钥用服务器方的证书进行了非对称加密。所以说，HTTP 安全性没有 HTTPS 高，但是 HTTPS 比 HTTP 耗费更多服务器资源。</li>
+</ul>
+<h2 id="HTTPS加密过程"><a href="#HTTPS加密过程" class="headerlink" title="HTTPS加密过程"></a>HTTPS加密过程</h2><ol>
+<li><p>服务器把自己的公开密钥登录到数字证书认证机构</p>
+</li>
+<li><p>数字认证证书认证机构用自己的私有密钥向服务器的公开密钥部署数字签名并颁发公钥证书</p>
+</li>
+<li><p>服务器会将这份由数字认证机构颁发的公钥证书发送给客户端，以公开密钥加密的方式通信</p>
+</li>
+<li><p>接到证书的客户端可使用数字证书认证机构的公开密钥(事先已经植入到浏览器中)，对证书上的数字签名进行验签(用 CA 公钥对证书的签名进行解密，获得了 CA 生成的摘要，客户端对证书数据（包含服务器的公钥）做相同的散列处理，得到摘要，并将该摘要与之前从签名中解码出的摘要做对比，如果相同，则身份验证成功；否则验证失败)</p>
+</li>
+<li><p>当验签成功后，代表着信赖服务端的公开密钥，后续使用此公开密钥进行对称加密通信</p>
+</li>
+</ol>
+<h2 id="SSL-x2F-TSL原理"><a href="#SSL-x2F-TSL原理" class="headerlink" title="SSL&#x2F;TSL原理"></a>SSL&#x2F;TSL原理</h2><p><strong>非对称加密</strong></p>
+<p>SSL&#x2F;TLS 的核心要素是<strong>非对称加密</strong>。非对称加密采用两个密钥——一个公钥，一个私钥。在通信时，私钥仅由解密者保存，公钥由任何一个想与解密者通信的发送者（加密者）所知。</p>
+<p><strong>对称加密</strong></p>
+<p>通信双方共享唯一密钥 k，加解密算法已知，加密方利用密钥 k 加密，解密方利用密钥 k 解密，保密性依赖于密钥 k 的保密性</p>
+<h2 id="中间人攻击"><a href="#中间人攻击" class="headerlink" title="中间人攻击"></a>中间人攻击</h2><p>由于HTTP协议无法证明通信的报文完整性，没有办法确认发出去的请求响应和接收到的请求响应时相同的。攻击人利用这一弱点，随意篡改请求和响应，但是客户端和服务端无感知</p>
+<h2 id="TCP和UDP的区别"><a href="#TCP和UDP的区别" class="headerlink" title="TCP和UDP的区别"></a>TCP和UDP的区别</h2><ol>
+<li><strong>是否面向连接</strong> ：UDP 在传送数据之前不需要先建立连接。而 TCP 提供面向连接的服务，在传送数据之前必须先建立连接，数据传送结束后要释放连接。</li>
+<li><strong>是否是可靠传输</strong>：远地主机在收到 UDP 报文后，不需要给出任何确认，并且不保证数据不丢失，不保证是否顺序到达。TCP 提供可靠的传输服务，TCP 在传递数据之前，会有三次握手来建立连接，而且在数据传递时，有确认、窗口、重传、拥塞控制机制。通过 TCP 连接传输的数据，无差错、不丢失、不重复、并且按序到达。</li>
+<li><strong>是否有状态</strong> ：这个和上面的“是否可靠传输”相对应。TCP 传输是有状态的，这个有状态说的是 TCP 会去记录自己发送消息的状态比如消息是否发送了、是否被接收了等等。为此 ，TCP 需要维持复杂的连接状态表。而 UDP 是无状态服务，简单来说就是不管发出去之后的事情了（<strong>这很渣男！</strong>）。</li>
+<li><strong>传输效率</strong> ：由于使用 TCP 进行传输的时候多了连接、确认、重传等机制，所以 TCP 的传输效率要比 UDP 低很多。</li>
+<li><strong>传输形式</strong> ： TCP 是面向字节流的，UDP 是面向报文的。</li>
+<li><strong>首部开销</strong> ：TCP 首部开销（20 ～ 60 字节）比 UDP 首部开销（8 字节）要大。</li>
+<li><strong>是否提供广播或多播服务</strong> ：TCP 只支持点对点通信，UDP 支持一对一、一对多、多对一、多对多；</li>
+</ol>
+<h2 id="TCP三次握手"><a href="#TCP三次握手" class="headerlink" title="TCP三次握手"></a>TCP三次握手</h2><ul>
+<li><strong>一次握手</strong>:客户端发送带有 SYN（SEQ&#x3D;x） 标志的数据包 -&gt; 服务端，然后客户端进入 <strong>SYN_SEND</strong> 状态，等待服务器的确认；</li>
+<li><strong>二次握手</strong>:服务端发送带有 SYN+ACK(SEQ&#x3D;y,ACK&#x3D;x+1) 标志的数据包 –&gt; 客户端,然后服务端进入 <strong>SYN_RECV</strong> 状态</li>
+<li><strong>三次握手</strong>:客户端发送带有带有 ACK(ACK&#x3D;y+1) 标志的数据包 –&gt; 服务端，然后客户端和服务器端都进入<strong>ESTABLISHED</strong> 状态，完成TCP三次握手。</li>
+<li><img src="HTTP/image-20221105192915888.png" alt="image-20221105192915888" style="zoom:50%;" /></li>
+</ul>
+<h2 id="为什么要三次握手"><a href="#为什么要三次握手" class="headerlink" title="为什么要三次握手"></a>为什么要三次握手</h2><p>双方确认自己与对方的发送与接收是正常的，建立可靠的通信信道</p>
+<ol>
+<li><strong>第一次握手</strong> ：Client 什么都不能确认；Server 确认了对方发送正常，自己接收正常</li>
+<li><strong>第二次握手</strong> ：Client 确认了：自己发送、接收正常，对方发送、接收正常；Server 确认了：对方发送正常，自己接收正常</li>
+<li><strong>第三次握手</strong> ：Client 确认了：自己发送、接收正常，对方发送、接收正常；Server 确认了：自己发送、接收正常，对方发送、接收正常</li>
+</ol>
+<h2 id="第2次握手传回了ACK，为什么还要传回SYN"><a href="#第2次握手传回了ACK，为什么还要传回SYN" class="headerlink" title="第2次握手传回了ACK，为什么还要传回SYN"></a>第2次握手传回了ACK，为什么还要传回SYN</h2><p>服务端传回发送端所发送的 ACK(确认标识) 是为了告诉客户端：“我接收到的信息确实就是你所发送的信号了”，这表明从客户端到服务端的通信是正常的。<strong>回传 SYN(同步标识) 则是为了建立并确认从服务端到客户端的通信</strong>。</p>
+<p>为了实现可靠传输，发送方和接收方始终需要同步( SYNchronize )序号。 需要注意的是， 序号并不是从 0 开始的， 而是由发送方随机选择的初始序列号 ( Initial Sequence Number, ISN )开始 。 由于 TCP 是一个双向通信协议， 通信双方都有能力发送信息， 并接收响应。 因此， 通信双方都需要随机产生一个初始的序列号， 并且把这个起始值告诉对方</p>
+<img src="HTTP/image-20221105192626008.png" alt="image-20221105192626008" style="zoom:50%;" />
+
+<h2 id="TCP四次挥手"><a href="#TCP四次挥手" class="headerlink" title="TCP四次挥手"></a>TCP四次挥手</h2><ol>
+<li><strong>第一次挥手</strong> ：客户端发送一个 FIN（SEQ&#x3D;X） 标志的数据包-&gt;服务端，用来关闭客户端到服务器的数据传送。然后，客户端进入 <strong>FIN-WAIT-1</strong> 状态。</li>
+<li><strong>第二次挥手</strong> ：服务器收到这个 FIN（SEQ&#x3D;X） 标志的数据包，它发送一个 ACK （SEQ&#x3D;X+1）标志的数据包-&gt;客户端 。然后，此时服务端进入<strong>CLOSE-WAIT</strong>状态，客户端进入<strong>FIN-WAIT-2</strong>状态。</li>
+<li><strong>第三次挥手</strong> ：服务端关闭与客户端的连接并发送一个 FIN (SEQ&#x3D;y)标志的数据包-&gt;客户端请求关闭连接，然后，服务端进入<strong>LAST-ACK</strong>状态。</li>
+<li><strong>第四次挥手</strong> ：客户端发送 ACK (SEQ&#x3D;y+1)标志的数据包-&gt;服务端并且进入<strong>TIME-WAIT</strong>状态，服务端在收到 ACK (SEQ&#x3D;y+1)标志的数据包后进入 CLOSE 状态。此时，如果客户端等待 <strong>2MSL</strong> 后依然没有收到回复，就证明服务端已正常关闭，随后，客户端也可以关闭连接了。</li>
+</ol>
+<img src="HTTP/image-20221105193247072.png" alt="image-20221105193247072" style="zoom:50%;" />
+
+<h2 id="为什么要四次挥手"><a href="#为什么要四次挥手" class="headerlink" title="为什么要四次挥手"></a>为什么要四次挥手</h2><p>TCP是全双工通信，可以双向传输数据。任何一方都可以在数据传送结束后发出连接释放的通知，待对方确认后进入半关闭状态。当另一方也没有数据再发送的时候，则发出连接释放通知，对方确认后就完全关闭了 TCP 连接。</p>
+<h2 id="为什么不能把服务器发送的-ACK-和-FIN-合并起来，变成三次挥手"><a href="#为什么不能把服务器发送的-ACK-和-FIN-合并起来，变成三次挥手" class="headerlink" title="为什么不能把服务器发送的 ACK 和 FIN 合并起来，变成三次挥手"></a>为什么不能把服务器发送的 ACK 和 FIN 合并起来，变成三次挥手</h2><p>因为服务器收到客户端断开连接的请求时，可能还有一些数据没有发完，这时先回复 ACK，表示接收到了断开连接的请求。等到数据发完之后再发 FIN，断开服务器到客户端的数据传送</p>
+<h2 id="如果第二次挥手时服务器的-ACK-没有送达客户端，会怎样"><a href="#如果第二次挥手时服务器的-ACK-没有送达客户端，会怎样" class="headerlink" title="如果第二次挥手时服务器的 ACK 没有送达客户端，会怎样"></a>如果第二次挥手时服务器的 ACK 没有送达客户端，会怎样</h2><p>客户端没有收到 ACK 确认，会重新发送 FIN 请求。TCP超时重发的特性</p>
+<h2 id="为什么第四次挥手客户端需要等待-2-MSL（报文段最长寿命）时间后才进入-CLOSED-状态"><a href="#为什么第四次挥手客户端需要等待-2-MSL（报文段最长寿命）时间后才进入-CLOSED-状态" class="headerlink" title="为什么第四次挥手客户端需要等待 2*MSL（报文段最长寿命）时间后才进入 CLOSED 状态"></a>为什么第四次挥手客户端需要等待 2*MSL（报文段最长寿命）时间后才进入 CLOSED 状态</h2><p>第四次挥手时，客户端发送给服务器的 ACK 有可能丢失，如果服务端没有因为某些原因而没有收到 ACK 的话，服务端就会重发 FIN，如果客户端在 2*MSL 的时间内收到了 FIN，就会重新发送 ACK 并再次等待 2MSL，防止 Server 没有收到 ACK 而不断重发 FIN。</p>
+<p>一个片段在网络中最大的存活时间，2MSL 就是<strong>一个发送和一个回复所需的最大时间</strong>。如果直到 2MSL，Client 都没有再次收到 FIN，那么 Client 推断 ACK 已经被成功接收，则结束 TCP 连接</p>
+<h2 id="TIME-WAIT"><a href="#TIME-WAIT" class="headerlink" title="TIME_WAIT"></a>TIME_WAIT</h2><p>是在四次挥手中主动进行关闭连接的一方在接收到对方传达的带有FIN标志的数据包并且发送带有ACK标志的数据包后进入的状态</p>
+<h2 id="大量出现TIME-WAIT"><a href="#大量出现TIME-WAIT" class="headerlink" title="大量出现TIME_WAIT"></a>大量出现TIME_WAIT</h2><p>一个TCP&#x2F;IP连接断开以后，会通过TIME_WAIT的状态保留一段时间（2MSL），时间过了才会释放这个端口，当端口接受的频繁请求数量过多的时候，就会产生大量的TIME_WAIT状态的连接，这些连接占着端口，会消耗大量的资源。面对这种情况 可以通过<strong>修改TCP&#x2F;IP的内核参数</strong>、</p>
+<h2 id="CLOSE-WAIT"><a href="#CLOSE-WAIT" class="headerlink" title="CLOSE_WAIT"></a>CLOSE_WAIT</h2><p>CLOSE_WAIT是被动关闭连接方接收到主动方的带有FIN标志的数据包且发送带有ACK标志的数据包后进入的状态</p>
+<p>若执行close操作后，则会进行状态转换，由CLOSE_WAIT切换到LAST_ACK。但若被动关闭连接一方(通常是server)由于忙于读写操作，未及时将之前的连接进行close操作，则会导致大量的连接长时间处于CLOSE_WAIT，无法进入下一阶段</p>
+<img src="HTTP/image-20221105201418115.png" alt="image-20221105201418115" style="zoom:50%;" />
+
+<h2 id="DNS"><a href="#DNS" class="headerlink" title="DNS"></a>DNS</h2><p>DNS通过主机名，最终得到该主机名对应的IP地址的过程叫做域名解析（或主机名解析）</p>
+<p><strong>工作原理</strong></p>
+<p>将主机域名转换为ip地址，属于应用层协议，使用UDP传输</p>
+<p>第一步，客户端向本地DNS服务器发送解析请求</p>
+<p>第二步，本地DNS如有相应记录会直接返回结果给客户端，如没有就向DNS根服务器发送请求</p>
+<p>第三步,DSN根服务器接收到请求，返回给本地服务器一个所查询域的主域名服务器的地址</p>
+<p>第四步，本地dns服务器再向返回的主域名服务器地址发送查询请求</p>
+<p>第五步，主域名服务器如有记录就返回结果，没有的话返回相关的下级域名服务器地址</p>
+<p>第六步，本地DNS服务器继续向接收到的地址进行查询请求</p>
+<p>第七步，下级域名服务器有相应记录，返回结果</p>
+<p>第八步，本地dns服务器将收到的返回地址发给客户端，同时写入自己的缓存，以便下次查询</p>
+<p>DNS域名查询实际上就是个不断递归查询的过程，直到查找到相应结果，需要注意的时，当找不到相应记录，会返回空结果，而不是超时信息</p>
+<img src="HTTP/image-20221105202956694.png" alt="image-20221105202956694" style="zoom:67%;" />
+
+<h2 id="TCP-如何保证传输的可靠性"><a href="#TCP-如何保证传输的可靠性" class="headerlink" title="TCP 如何保证传输的可靠性"></a>TCP 如何保证传输的可靠性</h2><ol>
+<li><strong>基于数据快传输</strong> ：应用数据被分割成 TCP 认为最适合发送的数据块，再传输给网络层，数据块被称为报文段或段。</li>
+<li><strong>对失序数据包重新排序以及去重</strong>：TCP 为了保证不发生丢包，就给每个包一个序列号，有了序列号能够将接收到的数据根据序列号排序，并且去掉重复序列号的数据就可以实现数据包去重。</li>
+<li><strong>校验和</strong> : TCP 将保持它首部和数据的检验和。这是一个端到端的检验和，目的是检测数据在传输过程中的任何变化。如果收到段的检验和有差错，TCP 将丢弃这个报文段和不确认收到此报文段。</li>
+<li><strong>超时重传</strong> : 当发送方发送数据之后，它启动一个定时器，等待目的端确认收到这个报文段。接收端实体对已成功收到的包发回一个相应的确认信息（ACK）。如果发送端实体在合理的往返时延（RTT）内未收到确认消息，那么对应的数据包就被假设为<a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/%E4%B8%A2%E5%8C%85">已丢失open in new window</a>并进行重传。</li>
+<li><strong>流量控制</strong> : TCP 连接的每一方都有固定大小的缓冲空间，TCP 的接收端只允许发送端发送接收端缓冲区能接纳的数据。当接收方来不及处理发送方的数据，能提示发送方降低发送的速率，防止包丢失。TCP 使用的流量控制协议是可变大小的滑动窗口协议（TCP 利用滑动窗口实现流量控制）。</li>
+<li><strong>拥塞控制</strong> : 当网络拥塞时，减少数据的发送</li>
+</ol>
+<h2 id="并发"><a href="#并发" class="headerlink" title="并发"></a>并发</h2><h3 id="进程与线程"><a href="#进程与线程" class="headerlink" title="进程与线程"></a><strong>进程与线程</strong></h3><p>进程：进程是程序的一次执行过程，是系统运行程序的基本单位</p>
+<p>线程：与进程不同的是同类的多个线程共享进程的<strong>堆</strong>和<strong>方法区</strong>资源，但每个线程有自己的<strong>程序计数器</strong>、<strong>虚拟机栈</strong>和<strong>本地方法栈</strong>，所以系统在产生一个线程，或是在各个线程之间作切换工作时，负担要比进程小得多，也正因为如此，线程也被称为轻量级进程</p>
+<h3 id="线程生命周期"><a href="#线程生命周期" class="headerlink" title="线程生命周期"></a><strong>线程生命周期</strong></h3><img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20221101221732832.png" alt="image-20221101221732832" style="zoom: 67%;" />
+
+<h3 id="死锁"><a href="#死锁" class="headerlink" title="死锁"></a><strong>死锁</strong></h3><p>解决方法</p>
+<p>预防</p>
+<ol>
+<li>一次性申请所有的资源</li>
+<li>占用部分资源的线程进一步申请其他资源时，如果申请不到，可以主动释放它占有的资源</li>
+<li>靠按序申请资源来预防。按某一顺序申请资源，释放资源则反序释放。破坏循环等待条件</li>
+</ol>
+<p>避免</p>
+<ol>
+<li>借助算法，对资源分配进行评估</li>
+</ol>
+<h3 id="sleep-方法和-wait-方法对比"><a href="#sleep-方法和-wait-方法对比" class="headerlink" title="sleep() 方法和 wait() 方法对比"></a><strong>sleep() 方法和 wait() 方法对比</strong></h3><ul>
+<li><code>sleep()</code> 方法没有释放锁，而 <code>wait()</code> 方法释放了锁</li>
+<li><code>wait()</code> 通常被用于线程间交互&#x2F;通信，<code>sleep()</code>通常被用于暂停执行</li>
+<li><code>wait()</code> 方法被调用后，线程不会自动苏醒，需要别的线程调用同一个对象上的 <code>notify()</code>或者 <code>notifyAll()</code> 方法。<code>sleep()</code>方法执行完成后，线程会自动苏醒，或者也可以使用 <code>wait(long timeout)</code> 超时后线程会自动苏醒</li>
+<li><code>sleep()</code> 是 <code>Thread</code> 类的静态本地方法，<code>wait()</code> 则是 <code>Object</code> 类的本地方法</li>
+</ul>
+<h3 id="JMM"><a href="#JMM" class="headerlink" title="JMM"></a><strong>JMM</strong></h3><p>Java内存模型，是一种规范，规范了 JVM 如何提供按需禁用缓存和编译优化的方法</p>
+<p>对线程(本地内存)与主内存之间的关系，线程之间的共享变量必须存储在主内存中，类似与CPU缓存机制</p>
+<p>线程可以把变量保存 <strong>本地内存</strong> （比如机器的寄存器）中，而不是直接在主存中进行读写。这就可能造成一个线程在主存中修改了一个变量的值，而另外一个线程还继续使用它在寄存器中的变量值的拷贝，造成数据的不一致</p>
+<p>按需禁用缓存以及编译优化</p>
+<p>volatile: 告诉编译器，对这个变量的读写，不能使用 CPU 缓存，必须从内存中读取或者写入</p>
+<h3 id="happens-before-和-JMM-什么关系"><a href="#happens-before-和-JMM-什么关系" class="headerlink" title="happens-before 和 JMM 什么关系"></a><strong>happens-before 和 JMM 什么关系</strong></h3><p>JMM是定义</p>
+<p>happens-before是实现</p>
+<h3 id="happens-before常用规则"><a href="#happens-before常用规则" class="headerlink" title="happens-before常用规则"></a><strong>happens-before常用规则</strong></h3><ol>
+<li>volatile 变量规则，对一个 volatile 变量的写操作 happens-before 于后面对这个 volatile 变量的读操作</li>
+<li>传递规则 ：如果 A happens-before B，且 B happens-before C，那么 A happens-before C</li>
+<li>解锁规则：解锁 happens-before 于加锁</li>
+<li>程序顺序规则 ：一个线程内，按照代码顺序，书写在前面的操作 happens-before 于书写在后面的操作</li>
+<li>线程启动规则：Thread 对象的 <code>start()</code>方法 happens-before 于此线程的每一个动作</li>
+</ol>
+<h3 id="volatile"><a href="#volatile" class="headerlink" title="**volatile **"></a>**volatile **</h3><p> 告诉编译器，对这个变量的读写，不能使用 CPU 缓存，必须从内存中读取或者写入，也能防止指令重排</p>
+<p><code>volatile</code> 关键字能保证数据的可见性，但不能保证数据的原子性。<code>synchronized</code> 关键字两者都能保证</p>
+<img src="/2022/10/02/HTTP/image-20221106222615628.png" class="" title="image-20221106222615628">
+
+<h3 id="双重校验锁实现对象单例（线程安全）-："><a href="#双重校验锁实现对象单例（线程安全）-：" class="headerlink" title="双重校验锁实现对象单例（线程安全） ："></a><strong>双重校验锁实现对象单例（线程安全）</strong> ：</h3><pre><code class="java">public class Singleton &#123;
+
+    private volatile static Singleton uniqueInstance;
+
+    private Singleton() &#123;
+    &#125;
+
+    public  static Singleton getUniqueInstance() &#123;
+       //先判断对象是否已经实例过，没有实例化过才进入加锁代码
+        if (uniqueInstance == null) &#123;
+            //类对象加锁
+            synchronized (Singleton.class) &#123;
+                if (uniqueInstance == null) &#123;
+                    //分为三步执行：
+                    //为 uniqueInstance 分配内存空间
+                    //初始化 uniqueInstance
+                    //将 uniqueInstance 指向分配的内存地址
+                    uniqueInstance = new Singleton();
+                &#125;
+            &#125;
+        &#125;
+        return uniqueInstance;
+    &#125;
+&#125;
+</code></pre>
+<h3 id="synchronized"><a href="#synchronized" class="headerlink" title="synchronized"></a><strong>synchronized</strong></h3><p>解决的是多个线程之间访问资源的同步性，可以保证被它修饰的方法或者代码块在任意时刻只能有一个线程执行。</p>
+<p>在 Java 早期版本中，<code>synchronized</code> 属于 <strong>重量级锁</strong>，效率低下。 因为监视器锁（monitor）是依赖于底层的操作系统的 <code>Mutex Lock</code> 来实现的，Java 的线程是映射到操作系统的原生线程之上的。如果要挂起或者唤醒一个线程，都需要操作系统帮忙完成，而操作系统实现线程之间的切换时需要从用户态转换到内核态，这个状态之间的转换需要相对比较长的时间，时间成本相对较高。</p>
+<p>在 Java 6 之后，Java 官方对从 JVM 层面对 <code>synchronized</code> 较大优化，所以现在的 <code>synchronized</code> 锁效率也优化得很不错了。JDK1.6 对锁的实现引入了大量的优化，如自旋锁、适应性自旋锁、锁消除、锁粗化、偏向锁、轻量级锁等技术来减少锁操作的开销。</p>
+<p>底层原理</p>
+<p>对对象监视器 monitor 的获取</p>
+<ul>
+<li><p>JVM角度</p>
+<p>同步语句块情况：使用的是 <code>monitorenter</code> 和 <code>monitorexit</code> 指令，其中 <code>monitorenter</code> 指令指向同步代码块的开始位置，<code>monitorexit</code> 指令则指明同步代码块的结束位置，当执行 <code>monitorenter</code> 指令时，线程试图获取锁也就是获取 <strong>对象监视器 <code>monitor</code></strong> 的持有权，在执行<code>monitorenter</code>时，会尝试获取对象的锁，如果锁的计数器为 0 则表示锁可以被获取，获取后将锁计数器设为 1 也就是加 1</p>
+<p>修饰方法情况：利用<code>ACC_SYNCHRONIZED</code> 标识，该标识指明了该方法是一个同步方法。JVM 通过该 <code>ACC_SYNCHRONIZED</code> 访问标志来辨别一个方法是否声明为同步方法，从而执行相应的同步调用</p>
+</li>
+<li><p>管程角度</p>
+<p>管程：管理共享变量以及对共享变量的操作过程，让他们支持并发，解决了互斥与同步</p>
+<img src="C:/Users/Administrator/Desktop/面试/image-20221102115313386.png" alt="image-20221102115313386" style="zoom:67%;" />
+
+<p>框的上面只有一个入口，并且在入口旁边还有一个入口等待队列。当多个线程同时试图进入管程内部时，只允许一个线程进入，其他线程则在入口等待队列中等待。</p>
+<p>条件变量判断与条件变量等待队列：当不满足条件的时候，调用wait()，该线程进入等待队列。notify()、notifyAll()唤醒，进入阻塞队列</p>
+<p>wait() 的正确姿势</p>
+<p>因为被通知后，只是进入等待队列并没有拿到锁，当拿到锁时，条件变量可能已经变了，所以需要继续判断一次是否符合条件</p>
+<pre><code class="java">while(条件不满足) &#123; 
+    wait();
+&#125;
+</code></pre>
+</li>
+</ul>
+<h3 id="锁升级"><a href="#锁升级" class="headerlink" title="锁升级"></a>锁升级</h3><p>无锁状态 -&gt; 偏向锁 -&gt; 轻量级锁 -&gt; 重量级锁</p>
+<p>偏向锁：针对于一个线程而言的，线程获得锁之后就不会再有解锁等操作了，这样可以省略很多开销。假如有两个线程来竞争该锁话，那么偏向锁就失效了，进而升级成轻量级锁了。经验表明，其实大部分情况下，都会是同一个线程进入同一块同步代码块的。这也是为什么会有偏向锁出现的原因</p>
+<p>轻量级锁：使用 CAS 进行操作，实现获取锁，适合一个线程对一个锁的多次获取的情况; 轻量级锁适合锁执行体比较简单(即减少锁粒度或时间), 自旋一会儿就可以成功获取锁的情况</p>
+<p>重量级锁：使用操作系统互斥量（<code>mutex</code>）来实现的传统锁。 当所有对锁的优化都失效时，将退回到重量级锁。它与轻量级锁不同竞争的线程不再通过自旋来竞争线程， 而是直接进入堵塞状态，此时不消耗CPU，然后等拥有锁的线程释放锁后，唤醒堵塞的线程， 然后线程再次竞争锁。但是注意，当锁膨胀（<code>inflate</code>）为重量锁时，就不能再退回到轻量级锁</p>
+<h3 id="synchronized-和-volatile-的区别"><a href="#synchronized-和-volatile-的区别" class="headerlink" title="synchronized 和 volatile 的区别"></a><strong>synchronized 和 volatile 的区别</strong></h3><ul>
+<li><code>volatile</code> 关键字是线程同步的轻量级实现，所以 <code>volatile</code>性能肯定比<code>synchronized</code>关键字要好 。但是 <code>volatile</code> 关键字只能用于变量而 <code>synchronized</code> 关键字可以修饰方法以及代码块 。</li>
+<li><code>volatile</code> 关键字能保证数据的可见性，但不能保证数据的原子性。<code>synchronized</code> 关键字两者都能保证。</li>
+<li><code>volatile</code>关键字主要用于解决变量在多个线程之间的可见性，而 <code>synchronized</code> 关键字解决的是多个线程之间访问资源的同步性</li>
+</ul>
+<h3 id="ReentrantLock"><a href="#ReentrantLock" class="headerlink" title="ReentrantLock"></a><strong>ReentrantLock</strong></h3><p>Java SDK 并发包通过 Lock 和 Condition 两个接口来实现管程，其中 Lock 用于解决互斥问题，Condition 用于解决同步问题</p>
+<p>synchronized痛点：申请资源的时候，如果申请不到，线程直接进入阻塞状态了，而线程进入阻塞状态，啥都干不了，也释放不了线程已经占有的资源，核心是阻塞时，无法释放已经持有的锁</p>
+<p>理想状态下：占用部分资源的线程进一步申请其他资源时，如果申请不到，可以主动释放它占有的资源，这样不可抢占这个条件就破坏掉了</p>
+<p>优点：</p>
+<ul>
+<li><p>能够响应中断。synchronized 的问题是，持有锁 A 后，如果尝试获取锁 B 失败，那么线程就进入阻塞状态，一旦发生死锁，就没有任何机会来唤醒阻塞的线程。但如果阻塞状态的线程能够响应中断信号，也就是说当我们给阻塞的线程发送中断信号的时候，能够唤醒它，那它就有机会释放曾经持有的锁 A。这样就破坏了不可抢占条件了。</p>
+</li>
+<li><p>支持超时。如果线程在一段时间之内没有获取到锁，不是进入阻塞状态，而是返回一个错误，那这个线程也有机会释放曾经持有的锁。这样也能破坏不可抢占条件。</p>
+</li>
+<li><p>非阻塞地获取锁。如果尝试获取锁失败，并不进入阻塞状态，而是直接返回，那这个线程也有机会释放曾经持有的锁。这样也能破坏不可抢占条件。</p>
+</li>
+<li><p>可实现公平锁 : <code>ReentrantLock</code>可以指定是公平锁还是非公平锁。而<code>synchronized</code>只能是非公平锁。所谓的公平锁就是先等待的线程先获得锁。<code>ReentrantLock</code>默认情况是非公平的，可以通过 <code>ReentrantLock</code>类的<code>ReentrantLock(boolean fair)</code>构造方法来制定是否是公平的。</p>
+</li>
+<li><p>可实现选择性通知（锁可以绑定多个条件: <code>synchronized</code>关键字与<code>wait()</code>和<code>notify()</code>&#x2F;<code>notifyAll()</code>方法相结合可以实现等待&#x2F;通知机制。<code>ReentrantLock</code>类当然也可以实现，但是需要借助于<code>Condition</code>接口与<code>newCondition()</code>方法</p>
+</li>
+</ul>
+<h3 id="ThreadLocal"><a href="#ThreadLocal" class="headerlink" title="ThreadLocal"></a>ThreadLocal</h3><p>作用：是让每个线程绑定自己的值</p>
+<p>原理</p>
+<p>Thread源码</p>
+<pre><code class="java">public class Thread implements Runnable &#123;
+    //......
+    //与此线程有关的ThreadLocal值。由ThreadLocal类维护
+    ThreadLocal.ThreadLocalMap threadLocals = null;
+
+    //与此线程有关的InheritableThreadLocal值。由InheritableThreadLocal类维护
+    ThreadLocal.ThreadLocalMap inheritableThreadLocals = null;
+    //......
+&#125;
+</code></pre>
+<p><code>ThreadLocal</code>类的<code>set()</code>方法</p>
+<p>把目标值赋给调用该ThreadLoacl类的线程中的ThreadLocalMap</p>
+<p><code>ThreadLocalMap</code>的 key 就是 <code>ThreadLocal</code>对象，value 就是 <code>ThreadLocal</code> 对象调用<code>set</code>方法设置的值</p>
+<pre><code class="java">public void set(T value) &#123;
+    //获取当前请求的线程    
+    Thread t = Thread.currentThread();
+    //取出 Thread 类内部的 threadLocals 变量(哈希表结构)
+    ThreadLocalMap map = getMap(t);
+    if (map != null)
+        // 将需要存储的值放入到这个哈希表中
+        map.set(this, value);
+    else
+        createMap(t, value);
+&#125;
+ThreadLocalMap getMap(Thread t) &#123;
+    return t.threadLocals;
+&#125;
+</code></pre>
+<p>内存泄漏</p>
+<p><code>ThreadLocalMap</code> 中使用的 key 为 <code>ThreadLocal</code> 的弱引用，而 value 是强引用。所以，如果 <code>ThreadLocal</code> 没有被外部强引用的情况下，在垃圾回收的时候，key 会被清理掉，而 value 不会被清理掉。</p>
+<p>这样一来，<code>ThreadLocalMap</code> 中就会出现 key 为 null 的 Entry。假如我们不做任何措施的话，value 永远无法被 GC 回收，这个时候就可能会产生内存泄露。<code>ThreadLocalMap</code> 实现中已经考虑了这种情况，在调用 <code>set()</code>、<code>get()</code>、<code>remove()</code> 方法的时候，会清理掉 key 为 null 的记录。使用完 <code>ThreadLocal</code>方法后 最好手动调用<code>remove()</code>方法</p>
+<h3 id="线程池"><a href="#线程池" class="headerlink" title="线程池"></a><strong>线程池</strong></h3><p>优点：</p>
+<ul>
+<li><strong>降低资源消耗</strong>。通过重复利用已创建的线程降低线程创建和销毁造成的消耗。</li>
+<li><strong>提高响应速度</strong>。当任务到达时，任务可以不需要等到线程创建就能立即执行。</li>
+<li><strong>提高线程的可管理性</strong>。线程是稀缺资源，如果无限制的创建，不仅会消耗系统资源，还会降低系统的稳定性，使用线程池可以进行统一的分配，调优和监控。</li>
+</ul>
+<p>原理：</p>
+<ol>
+<li>首先判断当前线程池中之行的任务数量是否小于 corePoolSize，如果小于的话，通过addWorker(command, true)新建一个线程，并将任务(command)添加到该线程中；然后，启动该线程从而执行任务。</li>
+<li>如果当前之行的任务数量大于等于 corePoolSize 的时候就会走到这里，通过 isRunning 方法判断线程池状态，线程池处于 RUNNING 状态并且队列可以加入任务，该任务才会被加入进去</li>
+<li>当队列容量满时，扩容为maximumPoolSize</li>
+</ol>
+<p>参数：</p>
+<ul>
+<li><strong><code>corePoolSize</code> :</strong> 核心线程数定义了最小可以同时运行的线程数量。</li>
+<li><strong><code>maximumPoolSize</code> :</strong> 当队列中存放的任务达到队列容量的时候，当前可以同时运行的线程数量变为最大线程数。</li>
+<li><strong><code>workQueue</code>:</strong> 当新任务来的时候会先判断当前运行的线程数量是否达到核心线程数，如果达到的话，新任务就会被存放在队列中。</li>
+<li><strong><code>keepAliveTime</code></strong>:当线程池中的线程数量大于 <code>corePoolSize</code> 的时候，如果这时没有新的任务提交，核心线程外的线程不会立即销毁，而是会等待，直到等待的时间超过了 <code>keepAliveTime</code>才会被回收销毁；</li>
+<li><strong><code>unit</code></strong> : <code>keepAliveTime</code> 参数的时间单位。</li>
+<li><strong><code>threadFactory</code></strong> :executor 创建新线程的时候会用到。</li>
+<li><strong><code>handler</code></strong> :拒接策略</li>
+</ul>
+<p>拒绝策略：</p>
+<ul>
+<li><strong><code>ThreadPoolExecutor.AbortPolicy</code>：</strong> 抛出 <code>RejectedExecutionException</code>来拒绝新任务的处理。</li>
+<li><strong><code>ThreadPoolExecutor.CallerRunsPolicy</code>：</strong> 调用执行自己的线程运行任务，也就是直接在调用<code>execute</code>方法的线程中运行(<code>run</code>)被拒绝的任务，如果执行程序已关闭，则会丢弃该任务。因此这种策略会降低对于新任务提交速度，影响程序的整体性能。如果您的应用程序可以承受此延迟并且你要求任何一个任务请求都要被执行的话，你可以选择这个策略。</li>
+<li><strong><code>ThreadPoolExecutor.DiscardPolicy</code>：</strong> 不处理新任务，直接丢弃掉。</li>
+<li><strong><code>ThreadPoolExecutor.DiscardOldestPolicy</code>：</strong> 此策略将丢弃最早的未处理的任务请求。</li>
+</ul>
+<h3 id="手写BlockedQueue"><a href="#手写BlockedQueue" class="headerlink" title="手写BlockedQueue"></a>手写BlockedQueue</h3><pre><code class="java">import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+public class BlockedQueue&lt;T&gt; &#123;
+    final Lock lock = new ReentrantLock();
+    // 条件变量：队列不满
+    final Condition notFull = lock.newCondition();
+    // 条件变量：队列不空
+    final Condition notEmpty = lock.newCondition();
+    // 阻塞单列最大长度
+    int capacity = 0;
+    // 当前已经存在下标：入队
+    int putIndex = 0;
+    // 当前已经存在下标：出队
+    int takeIndex = 0;
+    // 元素总数
+    int elementsSize = 0;
+    // 元素数组
+    Object[] items;
+    // 构造方法
+    public BlockedQueue(int capacity) &#123;
+        this.capacity = capacity;
+        items = new Object[capacity];
+        System.out.println(&quot;capacity=&quot; + capacity + &quot;,items.size=&quot; + items.length);
+    &#125;
+    // 入队
+    void enq(T x) &#123;
+        lock.lock();
+        try &#123;
+            // 队列已满
+            while (items.length == elementsSize) &#123;
+                // 等待队列不满
+                notFull.await();
+            &#125;
+            // 入队操作...
+            items[putIndex] = x;
+            if (++putIndex == items.length)
+                putIndex = 0;
+            ++elementsSize;
+            // 入队后, 通知可出队
+            notEmpty.signal();
+        &#125; catch (InterruptedException e) &#123;
+            e.printStackTrace();
+        &#125; finally &#123;
+            lock.unlock();
+            System.out.println(x.toString() + &quot;--入队完成&quot;);
+        &#125;
+    &#125;
+    // 出队
+    T deq() &#123;
+        lock.lock();
+        T x = null;
+        try &#123;
+            // 队列已空
+            while (items.length == 0) &#123;
+                // 等待队列不空
+                notEmpty.await();
+            &#125;
+            // 出队操作...
+            x = (T) items[takeIndex];
+            items[takeIndex] = null;
+            if (++takeIndex == items.length)
+                takeIndex = 0;
+            elementsSize--;
+            // 出队后，通知可入队
+            notFull.signal();
+        &#125; catch (InterruptedException e) &#123;
+            e.printStackTrace();
+        &#125; finally &#123;
+            lock.unlock();
+        &#125;
+        return x;
+    &#125;
+
+    public T get(int index) &#123;
+        return (T) items[index];
+    &#125;
+&#125;
+</code></pre>
+<h2 id="LRU"><a href="#LRU" class="headerlink" title="LRU"></a>LRU</h2><pre><code class="java">class LRUCache &#123;
+    int cap;
+    LinkedHashMap&lt;Integer, Integer&gt; cache = new LinkedHashMap&lt;&gt;();
+    public LRUCache(int capacity) &#123; 
+        this.cap = capacity;
+    &#125;
+    
+    public int get(int key) &#123;
+        if (!cache.containsKey(key)) &#123;
+            return -1;
+        &#125;
+        // 将 key 变为最近使用
+        makeRecently(key);
+        return cache.get(key);
+    &#125;
+    
+    public void put(int key, int val) &#123;
+        if (cache.containsKey(key)) &#123;
+            // 修改 key 的值
+            cache.put(key, val);
+            // 将 key 变为最近使用
+            makeRecently(key);
+            return;
+        &#125;
+        
+        if (cache.size() &gt;= this.cap) &#123;
+            // 链表头部就是最久未使用的 key
+            int oldestKey = cache.keySet().iterator().next();
+            cache.remove(oldestKey);
+        &#125;
+        // 将新的 key 添加链表尾部
+        cache.put(key, val);
+    &#125;
+    
+    private void makeRecently(int key) &#123;
+        int val = cache.get(key);
+        // 删除 key，重新插入到队尾
+        cache.remove(key);
+        cache.put(key, val);
+    &#125;
+&#125;
+</code></pre>
+<pre><code class="java">class LRUCache &#123;
+    // key -&gt; Node(key, val)
+    private HashMap&lt;Integer, Node&gt; map;
+    // Node(k1, v1) &lt;-&gt; Node(k2, v2)...
+    private DoubleList cache;
+    // 最大容量
+    private int cap;
+    
+    public LRUCache(int capacity) &#123;
+        this.cap = capacity;
+        map = new HashMap&lt;&gt;();
+        cache = new DoubleList();
+    &#125;
+    
+    /* 将某个 key 提升为最近使用的 */
+private void makeRecently(int key) &#123;
+    Node x = map.get(key);
+    // 先从链表中删除这个节点
+    cache.remove(x);
+    // 重新插到队尾
+    cache.addLast(x);
+&#125;
+
+/* 添加最近使用的元素 */
+private void addRecently(int key, int val) &#123;
+    Node x = new Node(key, val);
+    // 链表尾部就是最近使用的元素
+    cache.addLast(x);
+    // 别忘了在 map 中添加 key 的映射
+    map.put(key, x);
+&#125;
+
+/* 删除某一个 key */
+private void deleteKey(int key) &#123;
+    Node x = map.get(key);
+    // 从链表中删除
+    cache.remove(x);
+    // 从 map 中删除
+    map.remove(key);
+&#125;
+
+/* 删除最久未使用的元素 */
+private void removeLeastRecently() &#123;
+    // 链表头部的第一个元素就是最久未使用的
+    Node deletedNode = cache.removeFirst();
+    // 同时别忘了从 map 中删除它的 key
+    int deletedKey = deletedNode.key;
+    map.remove(deletedKey);
+&#125;
+    public int get(int key) &#123;
+    if (!map.containsKey(key)) &#123;
+        return -1;
+    &#125;
+    // 将该数据提升为最近使用的
+    makeRecently(key);
+    return map.get(key).val;
+&#125;
+    public void put(int key, int val) &#123;
+    if (map.containsKey(key)) &#123;
+        // 删除旧的数据
+        deleteKey(key);
+        // 新插入的数据为最近使用的数据
+        addRecently(key, val);
+        return;
+    &#125;
+    
+    if (cap == cache.size()) &#123;
+        // 删除最久未使用的元素
+        removeLeastRecently();
+    &#125;
+    // 添加为最近使用的元素
+    addRecently(key, val);
+&#125;
+&#125;
+</code></pre>
+<pre><code class="java">import java.util.HashMap;
+import java.util.Map;
+ 
+public class LRUCache&lt;K, V&gt; &#123;
+ 
+    private Node&lt;K, V&gt; lru;
+    private Node&lt;K, V&gt; mru;
+    private Map&lt;K, Node&lt;K, V&gt;&gt; container;
+    private int capacity;
+    private int currentSize;
+ 
+    public LRUCache(int capacity) &#123;
+        this.capacity = capacity;
+        this.currentSize = 0;
+        lru = new Node&lt;K, V&gt;(null, null, null, null);
+        mru = lru;
+        container = new HashMap&lt;K, Node&lt;K, V&gt;&gt;();
+    &#125;
+ 
+    public V get(K key) &#123;
+        Node&lt;K, V&gt; tempNode = container.get(key);
+        if (tempNode == null) &#123;
+            return null;
+        &#125;
+        // If MRU leave the list as it is
+        else if (tempNode.key == mru.key) &#123;
+            return mru.value;
+        &#125;
+ 
+        // Get the next and prev nodes
+        Node&lt;K, V&gt; nextNode = tempNode.next;
+        Node&lt;K, V&gt; prevNode = tempNode.prev;
+ 
+        // If at the left-most, we update LRU
+        if (tempNode.key == lru.key) &#123;
+            nextNode.prev = null;
+            lru = nextNode;
+        &#125;
+ 
+        // If we are in the middle, we need to update the items before and after our
+        // item
+        else if (tempNode.key != mru.key) &#123;
+            prevNode.next = nextNode;
+            nextNode.prev = prevNode;
+        &#125;
+ 
+        // Finally move our item to the MRU
+        tempNode.prev = mru;
+        mru.next = tempNode;
+        mru = tempNode;
+        mru.next = null;
+ 
+        return tempNode.value;
+ 
+    &#125;
+ 
+    public void put(K key, V value) &#123;
+        if (container.containsKey(key)) &#123;
+            return;
+        &#125;
+ 
+        // Put the new node at the right-most end of the linked-list
+        Node&lt;K, V&gt; myNode = new Node&lt;K, V&gt;(mru, null, key, value);
+        mru.next = myNode;
+        container.put(key, myNode);
+        mru = myNode;
+ 
+        // Delete the left-most entry and update the LRU pointer
+        if (currentSize == capacity) &#123;
+            container.remove(lru.key);
+            lru = lru.next;
+            lru.prev = null;
+        &#125;
+ 
+        // Update container size, for the first added entry update the LRU pointer
+        else if (currentSize &lt; capacity) &#123;
+            if (currentSize == 0) &#123;
+                lru = myNode;
+            &#125;
+            currentSize++;
+        &#125;
+    &#125;
+ 
+    // Node for doubly linked list
+    class Node&lt;T, U&gt; &#123;
+        T key;
+        U value;
+        Node&lt;T, U&gt; prev;
+        Node&lt;T, U&gt; next;
+ 
+        public Node(Node&lt;T, U&gt; prev, Node&lt;T, U&gt; next, T key, U value) &#123;
+            this.prev = prev;
+            this.next = next;
+            this.key = key;
+            this.value = value;
+        &#125;
+    &#125;
+ 
+&#125;
+</code></pre>
+<p>集合、反射、排序、IO、TCP特性原理</p>
+<h2 id="HashMap"><a href="#HashMap" class="headerlink" title="HashMap"></a>HashMap</h2><h3 id="原理"><a href="#原理" class="headerlink" title="原理"></a><strong>原理</strong></h3><p>JDK8之前</p>
+<p>JDK1.8 之前 <code>HashMap</code> 底层是 <strong>数组和链表</strong> 结合在一起使用也就是 <strong>链表散列</strong>。HashMap 通过 key 的 <code>hashcode</code> 经过扰动函数处理过后得到 hash 值，然后通过 <code>(n - 1) &amp; hash</code> 判断当前元素存放的位置（这里的 n 指的是数组的长度），如果当前位置存在元素的话，就判断该元素与要存入的元素的 hash 值以及 key 是否相同，如果相同的话，直接覆盖，不相同就通过拉链法解决冲突</p>
+<p>扰动函数：优化hashcode，减少hash冲突</p>
+<p>JDK8之后</p>
+<p>JDK1.8 之后在解决哈希冲突时有了较大的变化，当链表长度大于阈值（默认为 8）（将链表转换成红黑树前会判断，如果当前数组的长度小于 64，那么会选择先进行数组扩容，而不是转换为红黑树）时，将链表转化为红黑树，以减少搜索时间。</p>
+<p><code>HashMap</code> 默认的初始化大小为 16。之后每次扩充，容量变为原来的 2 倍。并且， <code>HashMap</code> 总是使用 2 的幂作为哈希表的大小</p>
+<h3 id="Put方法"><a href="#Put方法" class="headerlink" title="Put方法"></a><strong>Put方法</strong></h3><p>jdk8</p>
+<pre><code class="java">public V put(K key, V value) &#123;
+    return putVal(hash(key), key, value, false, true);
+&#125;
+</code></pre>
+<ol>
+<li>如果定位到的数组位置没有元素 就直接插入。</li>
+<li>如果定位到的数组位置有元素就和要插入的 key 比较，如果 key 相同就直接覆盖，如果 key 不相同，就判断 p 是否是一个树节点，如果是就调用<code>e = ((TreeNode&lt;K,V&gt;)p).putTreeVal(this, tab, hash, key, value)</code>将元素添加进入。如果不是就遍历链表插入(插入的是链表尾部)</li>
+</ol>
+<p>jdk8之前</p>
+<ul>
+<li>① 如果定位到的数组位置没有元素 就直接插入。</li>
+<li>② 如果定位到的数组位置有元素，遍历以这个元素为头结点的链表，依次和插入的 key 比较，如果 key 相同就直接覆盖，不同就采用头插法插入元素</li>
+</ul>
+<h3 id="get方法"><a href="#get方法" class="headerlink" title="get方法"></a><strong>get方法</strong></h3><pre><code class="java">public V get(Object key) &#123;
+    Node&lt;K,V&gt; e;
+    return (e = getNode(hash(key), key)) == null ? null : e.value;
+&#125;
+
+final Node&lt;K,V&gt; getNode(int hash, Object key) &#123;
+    Node&lt;K,V&gt;[] tab; Node&lt;K,V&gt; first, e; int n; K k;
+    if ((tab = table) != null &amp;&amp; (n = tab.length) &gt; 0 &amp;&amp;
+        (first = tab[(n - 1) &amp; hash]) != null) &#123;
+        // 数组元素相等
+        if (first.hash == hash &amp;&amp; // always check first node
+            ((k = first.key) == key || (key != null &amp;&amp; key.equals(k))))
+            return first;
+        // 桶中不止一个节点
+        if ((e = first.next) != null) &#123;
+            // 在树中get
+            if (first instanceof TreeNode)
+                return ((TreeNode&lt;K,V&gt;)first).getTreeNode(hash, key);
+            // 在链表中get
+            do &#123;
+                if (e.hash == hash &amp;&amp;
+                    ((k = e.key) == key || (key != null &amp;&amp; key.equals(k))))
+                    return e;
+            &#125; while ((e = e.next) != null);
+        &#125;
+    &#125;
+    return null;
+&#125;
+</code></pre>
+<h2 id="fail-fast与fail-safe"><a href="#fail-fast与fail-safe" class="headerlink" title="fail-fast与fail-safe"></a>fail-fast与fail-safe</h2><p><strong>fail-fast：</strong>它是Java<a target="_blank" rel="noopener" href="https://so.csdn.net/so/search?q=%E9%9B%86%E5%90%88&spm=1001.2101.3001.7020">集合</a>(Collection)的一种错误机制。<strong>**当多个线程对同一个集合进行修改结构操作，使用集合的迭代器iterator,**会首先检测是否有对集合的并发修改，进而产生ConcurrentModificationException异常提示**。对集合进行遍历操作，</strong><em>*推荐使用迭代器遍历*</em>*<em>，更加安全可靠（fail-fast*<em>机制提供的保证！）。*<em>同时在遍历集合的过程中，需要对集合进行修改，</em></em></em>*应使用迭代器*<em><strong>提供的</strong></em>*remove***<em>等方法安全的修改集合，不会造成ConcurrentModificationException*<em>异常。</em></em></p>
+<p><strong>fail-safe</strong>：<strong>保证在对任何集合结构的修改操作*<em><strong>都基于 <strong><em>*复制 -*</em> 修改 进</strong>行的，即先copy一个新的集合对象，</strong></em>*然后对新的集合对象进行修改，最后将新的集合对象替换掉老的集合对象*</strong>*(老的集合对象的地址指向新的集合对象)。java.util.concurrent包下采用的是fail-safe机制</p>
+<img src="HTTP/image-20221106164153778.png" alt="image-20221106164153778" style="zoom:67%;" />
+
+<h2 id="存储引擎"><a href="#存储引擎" class="headerlink" title="存储引擎"></a>存储引擎</h2><h3 id="MyISAM-和-InnoDB-的区别"><a href="#MyISAM-和-InnoDB-的区别" class="headerlink" title="MyISAM 和 InnoDB 的区别"></a>MyISAM 和 InnoDB 的区别</h3><ol>
+<li><p>是否支持行级锁</p>
+<p>MyISAM 只有表级锁(table-level locking)，而 InnoDB 支持行级锁(row-level locking)和表级锁,默认为行级锁</p>
+</li>
+<li><p>是否支持事务</p>
+<p>MyISAM 不提供事务支持</p>
+<p>InnoDB 提供事务支持，实现了 SQL 标准定义了四个隔离级别，具有提交(commit)和回滚(rollback)事务的能力。并且，<strong>InnoDB 默认使用的 REPEATABLE-READ（可重读）</strong>隔离级别是可以<strong>解决幻读</strong>问题发生的（基于 MVCC 和 Next-Key Lock）</p>
+</li>
+<li><p>是否支持外键</p>
+<p>MyISAM 不支持，而 InnoDB 支持</p>
+<p>外键会产生级联更新，适用于单机低并发</p>
+</li>
+<li><p>是否支持数据库异常崩溃后的安全恢复</p>
+<p>MyISAM 不支持，而 InnoDB 支持。</p>
+<p>使用 InnoDB 的数据库在异常崩溃后，数据库重新启动的时候会保证数据库恢复到崩溃前的状态。这个恢复的过程依赖于 <code>redo log</code></p>
+</li>
+<li><p>是否支持 MVCC</p>
+<p>MyISAM 不支持，而 InnoDB 支持。(与事务同理)</p>
+</li>
+<li><p>索引实现不太一样</p>
+<p>虽然 MyISAM 引擎和 InnoDB 引擎都是使用 B+Tree 作为索引结构，但是两者的实现方式不太一样。</p>
+<p>InnoDB 引擎中，其数据文件本身就是索引文件。</p>
+<p>相比 MyISAM，索引文件和数据文件是分离的，其表数据文件本身就是按 B+Tree 组织的一个索引结构，树的叶节点 data 域保存了完整的数据记录。可以理解为二级索引</p>
+</li>
+</ol>
+<h2 id="事务"><a href="#事务" class="headerlink" title="事务"></a>事务</h2><h3 id="如何理解事务"><a href="#如何理解事务" class="headerlink" title="如何理解事务"></a>如何理解事务</h3><p>数据库事务可以保证多个对数据库的操作（也就是 SQL 语句）构成一个逻辑上的整体。构成这个逻辑上的整体的这些数据库操作遵循：<strong>要么全部执行成功,要么全部不执行</strong></p>
+<img src="/2022/10/02/HTTP/image-20221103214726175.png" class="" title="image-20221103214726175">
+
+<h3 id="ACID特性"><a href="#ACID特性" class="headerlink" title="ACID特性"></a>ACID特性</h3><ol>
+<li><strong>原子性</strong>（<code>Atomicity</code>） ： 事务是最小的执行单位，不允许分割。事务的原子性确保动作要么全部完成，要么完全不起作用；</li>
+<li><strong>一致性</strong>（<code>Consistency</code>）： 执行事务前后，数据保持一致，例如转账业务中，无论事务是否成功，转账者和收款人的总额应该是不变的；</li>
+<li><strong>隔离性</strong>（<code>Isolation</code>）： 并发访问数据库时，一个用户的事务不被其他事务所干扰，各并发事务之间数据库是独立的；</li>
+<li><strong>持久性</strong>（<code>Durabilily</code>）： 一个事务被提交之后。它对数据库中数据的改变是持久的，即使数据库发生故障也不应该对其有任何影响。</li>
+</ol>
+<h3 id="隔离级别"><a href="#隔离级别" class="headerlink" title="隔离级别"></a>隔离级别</h3><ul>
+<li><strong>READ-UNCOMMITTED(读取未提交)</strong> ： 最低的隔离级别，允许读取尚未提交的数据变更，可能会导致脏读、幻读或不可重复读。</li>
+<li><strong>READ-COMMITTED(读取已提交)</strong> ： 允许读取并发事务已经提交的数据，可以阻止脏读，但是幻读或不可重复读仍有可能发生。</li>
+<li><strong>REPEATABLE-READ(可重复读)</strong> ： 对同一字段的多次读取结果都是一致的，除非数据是被本身事务自己所修改，可以阻止脏读和不可重复读，但幻读仍有可能发生。</li>
+<li><strong>SERIALIZABLE(可串行化)</strong> ： 最高的隔离级别，完全服从 ACID 的隔离级别。所有的事务依次逐个执行，这样事务之间就完全不可能产生干扰，也就是说，该级别可以防止脏读、不可重复读以及幻读。</li>
+</ul>
+<img src="/2022/10/02/HTTP/image-20221103220533030.png" class="" title="image-20221103220533030">
+
+<h3 id="RR能防止幻读吗，RR默认使用间隙锁吗"><a href="#RR能防止幻读吗，RR默认使用间隙锁吗" class="headerlink" title="RR能防止幻读吗，RR默认使用间隙锁吗"></a>RR能防止幻读吗，RR默认使用间隙锁吗</h3><p>RR并不能防止幻读，默认是MVCC，<strong>在当前读情况下</strong>需要<strong>使用加锁读</strong>来保证不会出现幻读</p>
+<p>MySQL 的隔离级别基于锁和 MVCC 机制共同实现的。</p>
+<p>SERIALIZABLE 隔离级别，是通过锁来实现的。除了 SERIALIZABLE 隔离级别，其他的隔离级别都是基于 MVCC 实现。</p>
+<p>不过， SERIALIZABLE 之外的其他隔离级别可能也需要用到锁机制，就比如 REPEATABLE-READ <strong>在当前读情况下</strong>需要<strong>使用加锁读</strong>来保证不会出现幻读</p>
+<h3 id="MVCC"><a href="#MVCC" class="headerlink" title="MVCC"></a>MVCC</h3><p>多版本并发控制，通过undolog版本链和read-view实现事务隔离，</p>
+<p>页面中的记录和该记录对应的undo日志连接成一个链表，利用这个记录的版本链控制并发访问</p>
+<p>被访问版本的属性值id与ReadView的创建id</p>
+<h2 id="锁"><a href="#锁" class="headerlink" title="锁"></a>锁</h2><h3 id="表级锁与行级锁"><a href="#表级锁与行级锁" class="headerlink" title="表级锁与行级锁"></a>表级锁与行级锁</h3><p>MyISAM 仅仅支持表级锁(table-level locking)，一锁就锁整张表，这在并发写的情况下性非常差。</p>
+<p>InnoDB 不光支持表级锁(table-level locking)，还支持行级锁(row-level locking)，默认为行级锁。行级锁的粒度更小，仅对相关的记录上锁即可（对一行或者多行记录加锁），所以对于并发写入操作来说， InnoDB 的性能更高。</p>
+<ul>
+<li><strong>表级锁：</strong> MySQL 中锁定粒度最大的一种锁，是针对非索引字段加的锁，对当前操作的整张表加锁，实现简单，资源消耗也比较少，加锁快，不会出现死锁。其锁定粒度最大，触发锁冲突的概率最高，并发度最低，MyISAM 和 InnoDB 引擎都支持表级锁。</li>
+<li><strong>行级锁：</strong> MySQL 中锁定粒度最小的一种锁，是针对索引字段加的锁，只针对当前操作的行记录进行加锁。 行级锁能大大减少数据库操作的冲突。其加锁粒度最小，并发度高，但加锁的开销也最大，加锁慢，会出现死锁。</li>
+</ul>
+<h3 id="行级锁的使用注意事项"><a href="#行级锁的使用注意事项" class="headerlink" title="行级锁的使用注意事项"></a>行级锁的使用注意事项</h3><p>InnoDB 的行锁是针对索引字段加的锁，表级锁是针对非索引字段加的锁。当我们执行 <code>UPDATE</code>、<code>DELETE</code> 语句时，如果 <code>WHERE</code>条件中字段没有命中唯一索引或者索引失效的话，就会导致扫描全表对表中的所有行记录进行加锁</p>
+<p>不过，很多时候即使用了索引也有可能会走全表扫描，这是因为 MySQL 优化器的原因</p>
+<h2 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h2><h3 id="索引的理解"><a href="#索引的理解" class="headerlink" title="索引的理解"></a>索引的理解</h3><p>索引是一种用于快速查询和检索数据的数据结构</p>
+<h3 id="底层数据结构"><a href="#底层数据结构" class="headerlink" title="底层数据结构"></a>底层数据结构</h3><p><strong>Hash表</strong></p>
+<p>优点：</p>
+<ul>
+<li>哈希表是键值对的集合，通过键(key)即可快速取出对应的值(value)，因此哈希表可以快速检索数据（接近 O（1））</li>
+</ul>
+<p>缺点：</p>
+<ul>
+<li>hash冲突</li>
+<li>不支持顺序和范围查询(Hash 索引不支持顺序和范围查询</li>
+</ul>
+<p><strong>B+树索引</strong></p>
+<p><strong>B 树&amp; B+树两者有何异同</strong></p>
+<ul>
+<li>B 树的所有节点既存放键(key) 也存放 数据(data)，而 B+树只有叶子节点存放 key 和 data，其他内节点只存放 key。</li>
+<li>B 树的叶子节点都是独立的;B+树的叶子节点有一条引用链指向与它相邻的叶子节点。</li>
+<li>B 树的检索的过程相当于对范围内的每个节点的关键字做二分查找，可能还没有到达叶子节点，检索就结束了。而 B+树的检索效率就很稳定了，任何查找都是从根节点到叶子节点的过程，叶子节点的顺序检索很明显。</li>
+</ul>
+<p><strong>MyISAM与InnoDB B+树索引的区别</strong></p>
+<p>InnoDB：索引即数据，数据即索引</p>
+<p>MyISAM：索引即索引，数据即数据 </p>
+<p><strong>叶子节点为什么用双向链表</strong></p>
+<p>每一个页都包含两个页指针，一个是previous page指针，指向上一个页，一个是next page指针，指向下一个页。<br>头部还有Page的类型信息和用来唯一标识Page的编号。根据这个指针分布可以想象到Page链接起来就是一个双向链表</p>
+<p>个人理解：mysql以页为单位组织数据，所以宏观上一个页需要很容易感知到前后的页，方便索引的范围查询</p>
+<img src="/2022/10/02/HTTP/image-20221107194718377.png" class="" title="image-20221107194718377">
+
+
   </div>
   <div id="gitalk-container"></div>
 </div>
@@ -403,6 +1208,13 @@ Fancybox.bind('[data-fancybox="fancybox-gallery-img"]', {
 </style>
 
     <div class="post-paging">
+    
+    <a href="/2022/10/22/Java%E5%9F%BA%E7%A1%80/">
+        <div class="post-paging-last">
+            <span>上一篇</span>
+            <p>Java基础</p>
+        </div>
+    </a>
     
 
     

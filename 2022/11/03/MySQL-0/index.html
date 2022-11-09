@@ -2,7 +2,7 @@
 <html>
 	<head>
 		
-<title>计算机网络重要知识点-</title>
+<title>MySQL-</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -11,9 +11,8 @@
 <link rel="stylesheet" href="/css/index.css">
 
 
-
-<meta name="keywords" content="网络,">
-<meta name="description" content="">
+<meta name="keywords" content="MrLangTangNote,兰棠先生，兰棠">
+<meta name="description" content="Mr兰棠的学习网站">
 
 
 <script src="/js/jquery.min.js"></script>
@@ -283,13 +282,9 @@
     <div class="post-header-background-content">
         <ul class="post-header-tag">
             
-            
-            <li><a href="/tags/网络">网络</a></li>
-            
-            
         </ul>
         
-        <h1>计算机网络重要知识点</h1>
+        <h1>MySQL</h1>
         <div class="post-header-info">
             <div class="post-header-info-author">
                 
@@ -304,7 +299,7 @@
                 <div class="post-header-info-author-categories">
                     
                 </div>
-                <p>2022-09-22 21:38:40</p>
+                <p>2022-11-03 21:09:11</p>
             </div>
         </div>
     </div>
@@ -314,63 +309,82 @@
   <div id="article" class="post-content-info">
     
 
-    <h1 id="HTTP"><a href="#HTTP" class="headerlink" title="HTTP"></a>HTTP</h1><h2 id="从输入URL到页面展示到底发生了什么？"><a href="#从输入URL到页面展示到底发生了什么？" class="headerlink" title="从输入URL到页面展示到底发生了什么？"></a>从输入URL到页面展示到底发生了什么？</h2><ol>
-<li>DNS解析</li>
-<li>TCP三次握手建立连接</li>
-<li>发送HTTP请求</li>
-<li>服务器处理请求并返回HTTP报文</li>
-<li>浏览器解析渲染页面</li>
-<li>TCP四次挥手结束连接</li>
+    <h2 id="存储引擎"><a href="#存储引擎" class="headerlink" title="存储引擎"></a>存储引擎</h2><h3 id="MyISAM-和-InnoDB-的区别"><a href="#MyISAM-和-InnoDB-的区别" class="headerlink" title="MyISAM 和 InnoDB 的区别"></a>MyISAM 和 InnoDB 的区别</h3><ol>
+<li><p>是否支持行级锁</p>
+<p>MyISAM 只有表级锁(table-level locking)，而 InnoDB 支持行级锁(row-level locking)和表级锁,默认为行级锁</p>
+</li>
+<li><p>是否支持事务</p>
+<p>MyISAM 不提供事务支持</p>
+<p>InnoDB 提供事务支持，实现了 SQL 标准定义了四个隔离级别，具有提交(commit)和回滚(rollback)事务的能力。并且，<strong>InnoDB 默认使用的 REPEATABLE-READ（可重读）</strong>隔离级别是可以<strong>解决幻读</strong>问题发生的（基于 MVCC 和 Next-Key Lock）</p>
+</li>
+<li><p>是否支持外键</p>
+<p>MyISAM 不支持，而 InnoDB 支持</p>
+<p>外键会产生级联更新，适用于单机低并发</p>
+</li>
+<li><p>是否支持数据库异常崩溃后的安全恢复</p>
+<p>MyISAM 不支持，而 InnoDB 支持。</p>
+<p>使用 InnoDB 的数据库在异常崩溃后，数据库重新启动的时候会保证数据库恢复到崩溃前的状态。这个恢复的过程依赖于 <code>redo log</code></p>
+</li>
+<li><p>是否支持 MVCC</p>
+<p>MyISAM 不支持，而 InnoDB 支持。(与事务同理)</p>
+</li>
+<li><p>索引实现不太一样</p>
+<p>虽然 MyISAM 引擎和 InnoDB 引擎都是使用 B+Tree 作为索引结构，但是两者的实现方式不太一样。</p>
+<p>InnoDB 引擎中，其数据文件本身就是索引文件。</p>
+<p>相比 MyISAM，索引文件和数据文件是分离的，其表数据文件本身就是按 B+Tree 组织的一个索引结构，树的叶节点 data 域保存了完整的数据记录。可以理解为二级索引</p>
+</li>
 </ol>
-<p><strong>细节</strong></p>
-<p>DNS：提供域名到IP地址之间的解析服务</p>
-<p>HTTP职责：</p>
-<p>​	生成针对目标web服务器的HTTP请求报文</p>
-<p>​	对web服务器请求的内容进行处理</p>
-<p>TCP职责：</p>
-<p>​	将HTTP请求报文分割成报文段，把每个报文段可靠地传给对方</p>
-<p>IP职责：</p>
-<p>​	搜索对方地址，一边中转一遍传递</p>
-<h2 id="HTTP-状态码有哪些"><a href="#HTTP-状态码有哪些" class="headerlink" title="HTTP 状态码有哪些"></a>HTTP 状态码有哪些</h2><img src="/2022/09/22/%E7%BD%91%E7%BB%9C/image-20221008212639350.png" class="" title="image-20221008212639350">
+<h2 id="事务"><a href="#事务" class="headerlink" title="事务"></a>事务</h2><h3 id="如何理解事务"><a href="#如何理解事务" class="headerlink" title="如何理解事务"></a>如何理解事务</h3><p>数据库事务可以保证多个对数据库的操作（也就是 SQL 语句）构成一个逻辑上的整体。构成这个逻辑上的整体的这些数据库操作遵循：<strong>要么全部执行成功,要么全部不执行</strong></p>
+<img src="/2022/11/03/MySQL-0/image-20221103214726175.png" class="" title="image-20221103214726175">
 
-<h2 id="HTTP和HTTPS区别"><a href="#HTTP和HTTPS区别" class="headerlink" title="HTTP和HTTPS区别"></a>HTTP和HTTPS区别</h2><ul>
-<li><p>端口号：HTTP默认80.HTTPS默认443</p>
-</li>
-<li><p>URL前缀：http:&#x2F;&#x2F;  https:&#x2F;&#x2F;</p>
-</li>
-<li><p>安全性：</p>
-<p>HTTP协议运行在TCP之上，所有传输都是明文，容易遭到中间人攻击</p>
-<p>HTTPS是运行在SSL&#x2F;TLS之上的HTTP协议，SSL&#x2F;TLS运行在TCP之上。所有传输内容都要进行加密，加密采用对称加密，但对称加密的密钥使用了服务器的证书进行了非对称加密。所以说，HTTP安全性没有HTTPS高，但是HTTPS比HTTP消耗服务器资源更多</p>
-<p>消耗体现在编码解码对cpu计算的消耗等</p>
-</li>
+<h3 id="ACID特性"><a href="#ACID特性" class="headerlink" title="ACID特性"></a>ACID特性</h3><ol>
+<li><strong>原子性</strong>（<code>Atomicity</code>） ： 事务是最小的执行单位，不允许分割。事务的原子性确保动作要么全部完成，要么完全不起作用；</li>
+<li><strong>一致性</strong>（<code>Consistency</code>）： 执行事务前后，数据保持一致，例如转账业务中，无论事务是否成功，转账者和收款人的总额应该是不变的；</li>
+<li><strong>隔离性</strong>（<code>Isolation</code>）： 并发访问数据库时，一个用户的事务不被其他事务所干扰，各并发事务之间数据库是独立的；</li>
+<li><strong>持久性</strong>（<code>Durabilily</code>）： 一个事务被提交之后。它对数据库中数据的改变是持久的，即使数据库发生故障也不应该对其有任何影响。</li>
+</ol>
+<h3 id="隔离级别"><a href="#隔离级别" class="headerlink" title="隔离级别"></a>隔离级别</h3><ul>
+<li><strong>READ-UNCOMMITTED(读取未提交)</strong> ： 最低的隔离级别，允许读取尚未提交的数据变更，可能会导致脏读、幻读或不可重复读。</li>
+<li><strong>READ-COMMITTED(读取已提交)</strong> ： 允许读取并发事务已经提交的数据，可以阻止脏读，但是幻读或不可重复读仍有可能发生。</li>
+<li><strong>REPEATABLE-READ(可重复读)</strong> ： 对同一字段的多次读取结果都是一致的，除非数据是被本身事务自己所修改，可以阻止脏读和不可重复读，但幻读仍有可能发生。</li>
+<li><strong>SERIALIZABLE(可串行化)</strong> ： 最高的隔离级别，完全服从 ACID 的隔离级别。所有的事务依次逐个执行，这样事务之间就完全不可能产生干扰，也就是说，该级别可以防止脏读、不可重复读以及幻读。</li>
 </ul>
-<h2 id="HTTP-1-0-和-HTTP-1-1-有什么区别"><a href="#HTTP-1-0-和-HTTP-1-1-有什么区别" class="headerlink" title="HTTP 1.0 和 HTTP 1.1 有什么区别"></a>HTTP 1.0 和 HTTP 1.1 有什么区别</h2><ul>
-<li><strong>连接方式</strong>： HTTP1.0短链接，HTTP1.1长连接</li>
-<li><strong>状态响应码</strong>：HTTP&#x2F;1.1中新加入了大量的状态码，光是错误响应状态码就新增了24种。比如说，<code>100 (Continue)</code>——在请求大资源前的预热请求，<code>206 (Partial Content)</code>——范围请求的标识码，<code>409 (Conflict)</code>——请求与当前资源的规定冲突，<code>410 (Gone)</code>——资源已被永久转移，而且没有任何已知的转发地址。</li>
-<li><strong>缓存处理</strong> : 在 HTTP1.0 中主要使用 header 里的 If-Modified-Since,Expires 来做为缓存判断的标准，HTTP1.1 则引入了更多的缓存控制策略例如 Entity tag，If-Unmodified-Since, If-Match, If-None-Match 等更多可供选择的缓存头来控制缓存策略。</li>
-<li><strong>带宽优化及网络连接的使用</strong> :HTTP1.0 中，存在一些浪费带宽的现象，例如客户端只是需要某个对象的一部分，而服务器却将整个对象送过来了，并且不支持断点续传功能，HTTP1.1 则在请求头引入了 range 头域，它允许只请求资源的某个部分，即返回码是 206（Partial Content），这样就方便了开发者自由的选择以便于充分利用带宽和连接。</li>
-<li><strong>Host头处理</strong> : HTTP&#x2F;1.1在请求头中加入了<code>Host</code>字段。</li>
-</ul>
-<h2 id="HTTP-是不保存状态的协议-如何保存用户状态"><a href="#HTTP-是不保存状态的协议-如何保存用户状态" class="headerlink" title="HTTP 是不保存状态的协议, 如何保存用户状态"></a>HTTP 是不保存状态的协议, 如何保存用户状态</h2><p> Cookie是浏览器的一个机制:</p>
+<img src="/2022/11/03/MySQL-0/image-20221103220533030.png" class="" title="image-20221103220533030">
+
+<h3 id="RR能防止幻读吗，RR默认使用间隙锁吗"><a href="#RR能防止幻读吗，RR默认使用间隙锁吗" class="headerlink" title="RR能防止幻读吗，RR默认使用间隙锁吗"></a>RR能防止幻读吗，RR默认使用间隙锁吗</h3><p>RR并不能防止幻读，默认是MVCC，<strong>在当前读情况下</strong>需要<strong>使用加锁读</strong>来保证不会出现幻读</p>
+<p>MySQL 的隔离级别基于锁和 MVCC 机制共同实现的。</p>
+<p>SERIALIZABLE 隔离级别，是通过锁来实现的。除了 SERIALIZABLE 隔离级别，其他的隔离级别都是基于 MVCC 实现。</p>
+<p>不过， SERIALIZABLE 之外的其他隔离级别可能也需要用到锁机制，就比如 REPEATABLE-READ <strong>在当前读情况下</strong>需要<strong>使用加锁读</strong>来保证不会出现幻读</p>
+<h2 id="锁"><a href="#锁" class="headerlink" title="锁"></a>锁</h2><h3 id="表级锁与行级锁"><a href="#表级锁与行级锁" class="headerlink" title="表级锁与行级锁"></a>表级锁与行级锁</h3><p>MyISAM 仅仅支持表级锁(table-level locking)，一锁就锁整张表，这在并发写的情况下性非常差。</p>
+<p>InnoDB 不光支持表级锁(table-level locking)，还支持行级锁(row-level locking)，默认为行级锁。行级锁的粒度更小，仅对相关的记录上锁即可（对一行或者多行记录加锁），所以对于并发写入操作来说， InnoDB 的性能更高。</p>
 <ul>
-<li>存储数据(检查到响应头中有<code>Set-Cookie: xxx</code>,则会把数据进行存储)</li>
-<li>携带数据:每次发送请求的时候都会进行检查,如果有符合条件的Cookie数据,则会在请求头中进行携带(<code>Cookie: xxx</code>)</li>
+<li><strong>表级锁：</strong> MySQL 中锁定粒度最大的一种锁，是针对非索引字段加的锁，对当前操作的整张表加锁，实现简单，资源消耗也比较少，加锁快，不会出现死锁。其锁定粒度最大，触发锁冲突的概率最高，并发度最低，MyISAM 和 InnoDB 引擎都支持表级锁。</li>
+<li><strong>行级锁：</strong> MySQL 中锁定粒度最小的一种锁，是针对索引字段加的锁，只针对当前操作的行记录进行加锁。 行级锁能大大减少数据库操作的冲突。其加锁粒度最小，并发度高，但加锁的开销也最大，加锁慢，会出现死锁。</li>
 </ul>
-<p>Session</p>
-<p>首次请求，发现请求头中没有携带任何数据,那么servlet03中就会创建一个新的HttpSession对象,并且生成一个ID,把id称为<code>SessionID</code>,并且响应的时候通过响应头: <code>Set-Cookie: JSESSIONID=XXXX</code>,浏览器收到响应之后,发现触发了Cookie的机制(功能),把Sessionid进行了存储(Cookie的形式);有效期为-1;</p>
-<p>再次访问servlet04(浏览器没有关闭): 浏览器会把JSESSIONID通过请求头 <code>Cookie:xxx</code>携带给服务器,服务器收到请求之后,根据JSESSIONID找到Session对象;</p>
-<img src="/2022/09/22/%E7%BD%91%E7%BB%9C/image-20221008230806077.png" class="" title="image-20221008230806077">
+<h3 id="行级锁的使用注意事项"><a href="#行级锁的使用注意事项" class="headerlink" title="行级锁的使用注意事项"></a>行级锁的使用注意事项</h3><p>InnoDB 的行锁是针对索引字段加的锁，表级锁是针对非索引字段加的锁。当我们执行 <code>UPDATE</code>、<code>DELETE</code> 语句时，如果 <code>WHERE</code>条件中字段没有命中唯一索引或者索引失效的话，就会导致扫描全表对表中的所有行记录进行加锁</p>
+<p>不过，很多时候即使用了索引也有可能会走全表扫描，这是因为 MySQL 优化器的原因</p>
+<h2 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h2><h3 id="索引的理解"><a href="#索引的理解" class="headerlink" title="索引的理解"></a>索引的理解</h3><p>索引是一种用于快速查询和检索数据的数据结构</p>
+<h3 id="底层数据结构"><a href="#底层数据结构" class="headerlink" title="底层数据结构"></a>底层数据结构</h3><p><strong>Hash表</strong></p>
+<p>优点：</p>
+<ul>
+<li>哈希表是键值对的集合，通过键(key)即可快速取出对应的值(value)，因此哈希表可以快速检索数据（接近 O（1））</li>
+</ul>
+<p>缺点：</p>
+<ul>
+<li>hash冲突</li>
+<li>不支持顺序和范围查询(Hash 索引不支持顺序和范围查询</li>
+</ul>
+<p><strong>B+树索引</strong></p>
+<p><strong>B 树&amp; B+树两者有何异同</strong></p>
+<ul>
+<li>B 树的所有节点既存放键(key) 也存放 数据(data)，而 B+树只有叶子节点存放 key 和 data，其他内节点只存放 key。</li>
+<li>B 树的叶子节点都是独立的;B+树的叶子节点有一条引用链指向与它相邻的叶子节点。</li>
+<li>B 树的检索的过程相当于对范围内的每个节点的关键字做二分查找，可能还没有到达叶子节点，检索就结束了。而 B+树的检索效率就很稳定了，任何查找都是从根节点到叶子节点的过程，叶子节点的顺序检索很明显。</li>
+</ul>
+<p><strong>MyISAM与InnoDB B+树索引的区别</strong></p>
+<p>InnoDB：索引即数据，数据即索引</p>
+<p>MyISAM：索引即索引，数据即数据 </p>
 
-<h1 id="TCP"><a href="#TCP" class="headerlink" title="TCP"></a>TCP</h1><h2 id="TCP与UDP区别"><a href="#TCP与UDP区别" class="headerlink" title="TCP与UDP区别"></a>TCP与UDP区别</h2><ol>
-<li><strong>是否面向连接</strong> ：UDP 在传送数据之前不需要先建立连接。而 TCP 提供面向连接的服务，在传送数据之前必须先建立连接，数据传送结束后要释放连接。</li>
-<li><strong>是否是可靠传输</strong>：远地主机在收到 UDP 报文后，不需要给出任何确认，并且不保证数据不丢失，不保证是否顺序到达。TCP 提供可靠的传输服务，TCP 在传递数据之前，会有三次握手来建立连接，而且在数据传递时，有确认、窗口、重传、拥塞控制机制。通过 TCP 连接传输的数据，无差错、不丢失、不重复、并且按序到达。</li>
-<li><strong>是否有状态</strong> ：这个和上面的“是否可靠传输”相对应。TCP 传输是有状态的，这个有状态说的是 TCP 会去记录自己发送消息的状态比如消息是否发送了、是否被接收了等等。为此 ，TCP 需要维持复杂的连接状态表。而 UDP 是无状态服务，简单来说就是不管发出去之后的事情了（<strong>这很渣男！</strong>）。</li>
-<li><strong>传输效率</strong> ：由于使用 TCP 进行传输的时候多了连接、确认、重传等机制，所以 TCP 的传输效率要比 UDP 低很多。</li>
-<li><strong>传输形式</strong> ： TCP 是面向字节流的，UDP 是面向报文的。</li>
-<li><strong>首部开销</strong> ：TCP 首部开销（20 ～ 60 字节）比 UDP 首部开销（8 字节）要大。</li>
-<li><strong>是否提供广播或多播服务</strong> ：TCP 只支持点对点通信，UDP 支持一对一、一对多、多对一、多对多；</li>
-</ol>
-<h2 id="TCP流量控制"><a href="#TCP流量控制" class="headerlink" title="TCP流量控制"></a>TCP流量控制</h2><h2 id="TCP拥塞控制"><a href="#TCP拥塞控制" class="headerlink" title="TCP拥塞控制"></a>TCP拥塞控制</h2>
   </div>
   <div id="gitalk-container"></div>
 </div>
@@ -430,19 +444,12 @@ Fancybox.bind('[data-fancybox="fancybox-gallery-img"]', {
 
     <div class="post-paging">
     
-    <a href="/2022/10/01/%E8%B7%A8%E5%9F%9F/">
-        <div class="post-paging-last">
-            <span>上一篇</span>
-            <p>跨域</p>
-        </div>
-    </a>
-    
 
     
-    <a href="/2022/09/20/%E9%9B%86%E5%90%88/">
+    <a href="/2022/10/22/Mysql/">
         <div class="post-paging-next">
             <span>下一篇</span>
-            <p>集合</p>
+            <p>Mysql</p>
         </div>
     </a>
     
