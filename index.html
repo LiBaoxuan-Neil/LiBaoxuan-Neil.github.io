@@ -71,6 +71,489 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-OPP-Klass模型" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2025/08/13/OPP-Klass%E6%A8%A1%E5%9E%8B/" class="article-date">
+  <time class="dt-published" datetime="2025-08-13T13:37:01.000Z" itemprop="datePublished">2025-08-13</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2025/08/13/OPP-Klass%E6%A8%A1%E5%9E%8B/">OPP-Klass模型</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>OOP-Klass 模型是 HotSpot JVM 用来表示 Java 对象和类的内部机制，它将 Java 对象在 JVM 中的表示分为两部分：OOP (Ordinary Object Pointer) 和 Klass。</p>
+<h2 id="什么是-OOP-Klass-模型"><a href="#什么是-OOP-Klass-模型" class="headerlink" title="什么是 OOP-Klass 模型"></a>什么是 OOP-Klass 模型</h2><p>OOP-Klass 模型是 HotSpot JVM 设计的对象表示系统，它将 Java 对象的信息分为两部分：</p>
+<ul>
+<li><strong>OOP</strong>：表示对象实例数据，包含对象头和实例数据</li>
+<li><strong>Klass</strong>：表示类元数据和方法信息，描述 Java 类的结构</li>
+</ul>
+<p>这种设计的主要原因是避免在每个 Java 对象中都包含虚函数表(vtable)，从而节省内存空间。</p>
+<h2 id="OOP-结构"><a href="#OOP-结构" class="headerlink" title="OOP 结构"></a>OOP 结构</h2><p>OOP (Ordinary Object Pointer) 表示 Java 对象实例，主要包含三部分：</p>
+<ol>
+<li><strong>对象头</strong>：<ul>
+<li>Mark Word：存储对象运行时信息，如哈希码、GC 分代年龄、锁状态标志、线程 ID、时间戳等 </li>
+<li>元数据指针：指向方法区的 instanceKlass 实例</li>
+</ul>
+</li>
+<li><strong>实例数据</strong>：存储对象的实际字段值 </li>
+<li><strong>对齐填充</strong>：用于内存对齐的占位符</li>
+</ol>
+<p>在 JVM 源码中，oopDesc 类是 Java 对象的顶级基类，包含两个主要成员：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">oopDesc</span> &#123;</span><br><span class="line">	<span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">VMStructs</span>;</span><br><span class="line">	<span class="keyword">private</span>:</span><br><span class="line">		<span class="keyword">volatile</span> markOop _mark; <span class="comment">//对象头</span></span><br><span class="line">		<span class="keyword">union</span> <span class="title class_">_metadata</span> &#123;</span><br><span class="line">			wideKlassOop _klass; <span class="comment">//普通指针</span></span><br><span class="line">			narrowOop _compressed_klass; <span class="comment">//压缩类指针</span></span><br><span class="line">		&#125; _metadata;</span><br><span class="line">	<span class="keyword">private</span>:</span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">instanceOopDesc</span> : <span class="keyword">public</span> oopDesc &#123; <span class="comment">//普通对象类型</span></span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">arrayOopDesc</span> : <span class="keyword">public</span> oopDesc &#123; <span class="comment">//数组对象类型</span></span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Klass-结构"><a href="#Klass-结构" class="headerlink" title="Klass 结构"></a>Klass 结构</h2><p>Klass 是 Java 类在 JVM 中的 C++ 对等体，主要功能包括：</p>
+<ol>
+<li>实现语言层面的 Java 类</li>
+<li>实现 Java 对象的分发功能</li>
+</ol>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//用来描述语言层的类型</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Klass</span> : <span class="keyword">public</span> Metadata &#123;</span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">	<span class="comment">//指向java.lang.Class的 instance，mirroring this class即是这个类的影子类</span></span><br><span class="line">	OopHandle _java_mirror;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//在虚拟机层面描述一个Java类</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">InstanceKlass</span>: <span class="keyword">public</span> Klass &#123;</span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>当 JVM 加载一个 class 文件时，会在方法区创建 instanceKlass 对象，存储类的元数据</strong>，<strong>在 Java 8 及以后版本，instanceKlass 存放在元空间(Metaspace)</strong> </p>
+<p>包括：</p>
+<ul>
+<li>常量池</li>
+<li>字段</li>
+<li>方法</li>
+<li>访问标志</li>
+<li>类名等</li>
+</ul>
+<p>Klass 类继承关系复杂，包含虚函数表，支持方法分发和多态。</p>
+<h3 id="java-mirror"><a href="#java-mirror" class="headerlink" title="_java_mirror"></a>_java_mirror</h3><p>在HotSpot JVM的OOP-Klass模型中，<code>_java_mirror</code>是一个非常重要的概念，它连接了JVM内部的Klass表示和Java语言层面的Class对象。Java层的java.lang.Class类型的实例也是一个普通对象，所以Class对象也就对应到一个instanceOopDesc实例。这个instanceOopDesc实例，被称为JVM层InstanceKlass实例的“Java镜像”，二者的关系如图所示:</p>
+<p><img src="/../pictures/OPP-Klass%E6%A8%A1%E5%9E%8B/image-20250813220139969.png" alt="image-20250813220139969"></p>
+<p><strong>基本概念</strong></p>
+<p><code>_java_mirror</code>是Klass结构中的一个字段，它指向Java语言中的java.lang.Class对象实例。简单来说：</p>
+<ul>
+<li><strong>Klass</strong>：JVM内部用C++表示的类元数据（在方法区&#x2F;元空间）</li>
+<li><strong>java.lang.Class</strong>：Java语言层面的类对象（在堆中）</li>
+<li><code>_java_mirror</code>：连接这两者的桥梁</li>
+</ul>
+<p><strong>作用</strong></p>
+<ul>
+<li><p>双向连接</p>
+<ul>
+<li>从Klass可以找到对应的Class对象（通过<code>_java_mirror</code>）</li>
+<li>从Class对象可以找到对应的Klass（Class对象中有指向Klass的指针）</li>
+</ul>
+</li>
+<li><p>隔离JVM实现细节</p>
+<ul>
+<li>Java程序员看到的是java.lang.Class对象</li>
+<li>JVM内部使用的是Klass结构</li>
+<li><code>_java_mirror</code>保持了这种抽象隔离</li>
+</ul>
+</li>
+<li><p>支持反射机制</p>
+<ul>
+<li>Java的反射API（如Class.getMethod()等）最终都是通过<code>_java_mirror</code>找到对应的Klass元数据来实现的。</li>
+</ul>
+</li>
+</ul>
+<p><strong>生命周期</strong></p>
+<ol>
+<li><strong>类加载时</strong>：<ul>
+<li>JVM创建Klass结构（在元空间）</li>
+<li>创建对应的java.lang.Class对象（在堆中）</li>
+<li>设置Klass的<code>_java_mirror</code>指向该Class对象</li>
+</ul>
+</li>
+<li><strong>类卸载时</strong>：<ul>
+<li>清除<code>_java_mirror</code>引用</li>
+<li>回收Klass和Class对象</li>
+</ul>
+</li>
+</ol>
+<p><strong>实际示例</strong></p>
+<p>对于如下Java代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Class&lt;String&gt; strClass = String.class;</span><br></pre></td></tr></table></figure>
+
+<p>在JVM内部：</p>
+<ol>
+<li><code>String.class</code>实际上访问的是<code>_java_mirror</code>指向的对象</li>
+<li>这个对象是java.lang.Class的实例</li>
+<li>通过这个Class对象可以获取所有反射信息</li>
+</ol>
+<p><strong>与压缩指针的关系</strong></p>
+<p>当启用压缩指针(-XX:+UseCompressedOops)时：</p>
+<ul>
+<li><code>_java_mirror</code>会使用压缩形式存储</li>
+<li>但逻辑关系保持不变</li>
+</ul>
+<p><strong>设计优势</strong></p>
+<ol>
+<li><strong>安全隔离</strong>：Java代码不能直接访问JVM内部数据结构</li>
+<li><strong>内存管理</strong>：Class对象在堆中，可以被GC管理</li>
+<li><strong>灵活性</strong>：允许JVM内部和Java层有不同的类表示形式</li>
+<li><strong>反射支持</strong>：为反射API提供基础支持</li>
+</ol>
+<h2 id="OOP-Klass-模型示例"><a href="#OOP-Klass-模型示例" class="headerlink" title="OOP-Klass 模型示例"></a>OOP-Klass 模型示例</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Model</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="type">int</span> <span class="variable">a</span> <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> b;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">Model</span><span class="params">(<span class="type">int</span> b)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.b = b;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">    <span class="type">Model</span> <span class="variable">modelA</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Model</span>(<span class="number">2</span>);</span><br><span class="line">    <span class="type">Model</span> <span class="variable">modelB</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Model</span>(<span class="number">3</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在 JVM 中会：</p>
+<ol>
+<li>加载 Model 类时创建 instanceKlass</li>
+<li>new Model() 时创建 instanceOopDesc</li>
+</ol>
+<p><img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/61b035d1f4814513b235f3416ec62f52~tplv-k3u1fbpfcp-zoom-in-crop-mark:1512:0:0:0.awebp" alt="2.jpg"></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://libaoxuan-neil.github.io/2025/08/13/OPP-Klass%E6%A8%A1%E5%9E%8B/" data-id="cmea26zrk0004k4ts6nex1fp8" data-title="OPP-Klass模型" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-Java并发机制底层原理" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2025/07/31/Java%E5%B9%B6%E5%8F%91%E6%9C%BA%E5%88%B6%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/" class="article-date">
+  <time class="dt-published" datetime="2025-07-31T13:18:14.000Z" itemprop="datePublished">2025-07-31</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2025/07/31/Java%E5%B9%B6%E5%8F%91%E6%9C%BA%E5%88%B6%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/">Java并发机制底层原理</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="1-多线程编程挑战"><a href="#1-多线程编程挑战" class="headerlink" title="1. 多线程编程挑战"></a>1. 多线程编程挑战</h2><p>并发编程的目的是让程序运行的更快，但<strong>并不是启动更多的线程就能让程序最大限度地并发执行</strong>。</p>
+<h3 id="1-1多核CPU与缓存关系"><a href="#1-1多核CPU与缓存关系" class="headerlink" title="1.1多核CPU与缓存关系"></a>1.1多核CPU与缓存关系</h3><p><img src="/../pictures/Java%E5%B9%B6%E5%8F%91%E6%9C%BA%E5%88%B6%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/e2aa76928b2bc135e08e7590ca36e0ea.png" alt="img"></p>
+<h3 id="1-2上下文切换"><a href="#1-2上下文切换" class="headerlink" title="1.2上下文切换"></a>1.2上下文切换</h3><p>单核处理器也支持多线程编程，</p>
+<p>早期操作系统CPU调度基于多进程切换：不同进程间是不共享内存空间的，所以进程要做任务切换就要切换内存映射地址。</p>
+<p>现在操作系统CPU调度基于多线程切换：相同进程内的线程共享内存空间，切换成本低。</p>
+<p><strong>如何减少上下文切换</strong></p>
+<ul>
+<li>无锁并发编程：</li>
+<li>CAS算法：</li>
+<li>使用最少线程：</li>
+<li>协程：</li>
+</ul>
+<h3 id="1-3-死锁"><a href="#1-3-死锁" class="headerlink" title="1.3 死锁"></a>1.3 死锁</h3><h3 id="1-4-硬件和软件资源受限"><a href="#1-4-硬件和软件资源受限" class="headerlink" title="1.4 硬件和软件资源受限"></a>1.4 硬件和软件资源受限</h3><h2 id="2-并发编程BUG源头"><a href="#2-并发编程BUG源头" class="headerlink" title="2.并发编程BUG源头"></a>2.并发编程BUG源头</h2><h3 id="2-1可见性"><a href="#2-1可见性" class="headerlink" title="2.1可见性"></a>2.1可见性</h3><p>CPU缓存</p>
+<h3 id="2-2原子性"><a href="#2-2原子性" class="headerlink" title="2.2原子性"></a>2.2原子性</h3><p>多个操作</p>
+<h3 id="2-3有序性"><a href="#2-3有序性" class="headerlink" title="2.3有序性"></a>2.3有序性</h3><p>编译优化</p>
+<p>new一个对象</p>
+<h2 id="3-Java并发机制底层实现"><a href="#3-Java并发机制底层实现" class="headerlink" title="3.Java并发机制底层实现"></a>3.Java并发机制底层实现</h2><h3 id="3-1volatile"><a href="#3-1volatile" class="headerlink" title="3.1volatile"></a>3.1volatile</h3><p>语义：<strong>禁用CPU缓存</strong>，Java线程内存模型确保所有线程看到这个变量的值是一致的。</p>
+<p><strong>volatile是如何保证可见性的</strong></p>
+<p>有volatile变量修饰的共享变量进行写操作时，会多出LOCK前缀指令的汇编代码：</p>
+<ul>
+<li>将当前处理器缓存行的数据写回到系统内存</li>
+<li>写回内存的操作会使在其他CPU里缓存了该内存地址的数据无效</li>
+<li>LOCK信号确保在这期间，处理器可以独占任何共享内存，理论上会锁住总线，导致其他CPU不能访问总线，不能访问总线就意味着不能访问内存</li>
+</ul>
+<p>为了提高处理速度，处理器不直接和内存进行通信，而是先将系统内存的的数据读到内部缓存再进行操作，但是操作完之后不知何时写回内存。 如果对声明了volatile变量进行写操作，JVM就会向处理器发送一条Lock前缀的指令，将这个变量所在缓存行的数据写进系统内存。 但是就算是写回内存，如果其他处理器缓存仍然是旧的，再执行计算操作就会有问题。所以在多处理器下，要保证缓存一致，就要实现<strong>缓存一致性协议</strong>。 每个处理器都会通过<strong>嗅探在总线上传播的数据</strong>来检查自己缓存是不是过期了，当处理器发现自己缓存行对应的内存地址被修改，就会将当前处理器的缓存设置为无效状态，当处理器对这个数据修改操作时，会重新从系统内存中把数据读到处理器缓存里。</p>
+<p><strong>volatile是如何保证有序性的</strong></p>
+<p><strong>volatile使用优化</strong></p>
+<h3 id="3-2synchronized"><a href="#3-2synchronized" class="headerlink" title="3.2synchronized"></a>3.2synchronized</h3>
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://libaoxuan-neil.github.io/2025/07/31/Java%E5%B9%B6%E5%8F%91%E6%9C%BA%E5%88%B6%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/" data-id="cmea26zrh0001k4ts2uo21u8k" data-title="Java并发机制底层原理" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag">多线程</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-HikariCP" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2025/07/13/HikariCP/" class="article-date">
+  <time class="dt-published" datetime="2025-07-13T09:01:05.000Z" itemprop="datePublished">2025-07-13</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2025/07/13/HikariCP/">HikariCP</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>HikariCP 是一个面向 Java 应用程序的高性能、轻量级 JDBC 连接池库。它提供应用程序与关系数据库之间的高效连接管理，优化数据库资源利用率，同时提供卓越的速度和可靠性。</p>
+<h2 id="什么是-HikariCP？"><a href="#什么是-HikariCP？" class="headerlink" title="什么是 HikariCP？"></a>什么是 HikariCP？</h2><p>HikariCP（“Hikari”在日语中意为“光”或“射线”）旨在打造一个“零开销”的生产级 JDBC 连接池。该库大小约为 165KB，非常轻量，但与其他连接池实现相比，性能却非常出色。</p>
+<p>该项目遵循极简主义的设计理念，正如 Edsger Dijkstra 博士所言：“简单是可靠性的先决条件。”</p>
+<p><img src="/../pictures/HikariCP/image-20250713170944699.png" alt="image-20250713170944699"></p>
+<h2 id="主要特点和优点"><a href="#主要特点和优点" class="headerlink" title="主要特点和优点"></a>主要特点和优点</h2><p>HikariCP 具有多种优势，使其成为许多 Java 应用程序的首选连接池：</p>
+<table>
+<thead>
+<tr>
+<th>特征</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>表现</strong></td>
+<td>在基准测试中始终优于其他连接池，且开销极小</td>
+</tr>
+<tr>
+<td><strong>可靠性</strong></td>
+<td>针对生产工作负载进行了优化，具有强大的连接处理和验证功能</td>
+</tr>
+<tr>
+<td><strong>简单</strong></td>
+<td>设计时秉承极简主义，避免不必要的复杂性</td>
+</tr>
+<tr>
+<td><strong>指标支持</strong></td>
+<td>与 Micrometer、Prometheus 和 Dropwizard 等监控系统内置集成</td>
+</tr>
+<tr>
+<td><strong>轻的</strong></td>
+<td>占用空间小（约 165KB），依赖性极小</td>
+</tr>
+<tr>
+<td><strong>最佳默认值</strong></td>
+<td>适用于大多数部署的合理默认设置</td>
+</tr>
+<tr>
+<td><strong>连接泄漏检测</strong></td>
+<td>内置识别和处理连接泄漏的功能</td>
+</tr>
+<tr>
+<td><strong>负载处理</strong></td>
+<td>精准处理峰值需求和高负载场景</td>
+</tr>
+</tbody></table>
+<h2 id="核心设计理念"><a href="#核心设计理念" class="headerlink" title="核心设计理念"></a>核心设计理念</h2><p>HikariCP 的设计遵循以下几个基本原则：</p>
+<ol>
+<li><strong>极简主义</strong>：仅提供基本功能，且配置要求最低</li>
+<li><strong>性能第一</strong>：在不牺牲可靠性的情况下优化速度</li>
+<li><strong>生产就绪</strong>：针对实际生产环境而非基准场景进行设计</li>
+<li><strong>资源效率</strong>：最大限度地减少垃圾收集压力和线程争用</li>
+<li><strong>首要指令</strong>：用户线程应该只在池本身上阻塞</li>
+</ol>
+<p>最后一条原则代表了 HikariCP 区别于其他连接池的关键架构决策。这意味着，当请求连接时，用户线程应该只等待连接池中出现可用连接，而不是等待诸如连接创建或验证之类的其他操作。</p>
+<p><img src="/../pictures/HikariCP/image-20250713172000679.png" alt="image-20250713172000679"></p>
+<h1 id="核心架构"><a href="#核心架构" class="headerlink" title="核心架构"></a>核心架构</h1><h2 id="核心组件"><a href="#核心组件" class="headerlink" title="核心组件"></a>核心组件</h2><p><img src="/../pictures/HikariCP/image-20250713174228104.png" alt="image-20250713174228104"></p>
+<table>
+<thead>
+<tr>
+<th>成分</th>
+<th>描述</th>
+<th>责任</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Hikari数据源</strong></td>
+<td>实现 JDBC DataSource 的主入口点</td>
+<td>提供对应用程序的连接访问；处理池初始化</td>
+</tr>
+<tr>
+<td><strong>Hikari配置</strong></td>
+<td>配置容器</td>
+<td>存储并验证所有池配置参数</td>
+</tr>
+<tr>
+<td><strong>HikariPool</strong></td>
+<td>连接池实现</td>
+<td>管理连接的生命周期和连接获取过程</td>
+</tr>
+<tr>
+<td><strong>PoolBase</strong></td>
+<td>HikariPool 的基类</td>
+<td>处理连接创建、验证和重置功能</td>
+</tr>
+<tr>
+<td><strong>并发包</strong></td>
+<td>专门的并发收集</td>
+<td>提供高性能、无锁的连接存储和检索</td>
+</tr>
+<tr>
+<td><strong>PoolEntry</strong></td>
+<td>连接包装器</td>
+<td>封装物理数据库连接并跟踪其状态</td>
+</tr>
+<tr>
+<td><strong>代理连接</strong></td>
+<td>连接代理</td>
+<td>包裹物理连接以拦截<code>close()</code>回收等调用</td>
+</tr>
+</tbody></table>
+<h3 id="HikariDataSource"><a href="#HikariDataSource" class="headerlink" title="HikariDataSource"></a>HikariDataSource</h3><p>HikariDataSource 是应用程序使用 HikariCP 高性能连接池功能的主要入口。作为实现标准 JDBC<code>DataSource</code>接口的类，它为应用程序提供数据库连接，同时管理底层连接池的生命周期。HikariDataSource 是 HikariPool 的门面，负责实际的连接管理。</p>
+<p>HikariDataSource 位于 HikariCP 架构的顶层，为客户端应用程序提供了一个简单的接口来获取池化数据库连接。</p>
+<p><img src="/../pictures/HikariCP/image-20250713215005976.png" alt="image-20250713215005976"></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://libaoxuan-neil.github.io/2025/07/13/HikariCP/" data-id="cmea26zrj0003k4ts6rk8gjxd" data-title="HikariCP" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93%E8%BF%9E%E6%8E%A5%E6%B1%A0/" rel="tag">数据库连接池</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-计算机网络" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2025/06/15/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" class="article-date">
+  <time class="dt-published" datetime="2025-06-15T14:08:54.000Z" itemprop="datePublished">2025-06-15</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2025/06/15/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://libaoxuan-neil.github.io/2025/06/15/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" data-id="cmea26zro000dk4tsa2iy1f2x" data-title="计算机网络" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-gin" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2025/06/07/gin/" class="article-date">
+  <time class="dt-published" datetime="2025-06-07T13:15:23.000Z" itemprop="datePublished">2025-06-07</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2025/06/07/gin/">gin</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="Gin应用入门"><a href="#Gin应用入门" class="headerlink" title="Gin应用入门"></a>Gin应用入门</h2><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;github.com/gin-gonic/gin&quot;</span></span><br><span class="line">	<span class="string">&quot;net/http&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	server := gin.Default()</span><br><span class="line">	server.GET(<span class="string">&quot;/hello&quot;</span>, <span class="function"><span class="keyword">func</span><span class="params">(ctx *gin.Context)</span></span> &#123;</span><br><span class="line">		ctx.String(http.StatusOK, <span class="string">&quot;hello gin!!!&quot;</span>)</span><br><span class="line">	&#125;)</span><br><span class="line">	server.Run(<span class="string">&quot;:8080&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="gin-Engine"><a href="#gin-Engine" class="headerlink" title="gin.Engine"></a>gin.Engine</h3><p>在 Gin 框架中，<strong><code>Engine</code></strong> 是 Web 服务器的抽象。一个应用内可以创建多个 <code>Engine</code> 实例，各自监听不同的端口。<code>Engine</code> 承担着<strong>路由注册</strong>与<strong>中间件集成</strong>的核心职责</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://libaoxuan-neil.github.io/2025/06/07/gin/" data-id="cmea26zrl0005k4ts41oq7ze7" data-title="gin" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/golang/" rel="tag">golang</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-分布式配置中心" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2025/06/01/%E5%88%86%E5%B8%83%E5%BC%8F%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83/" class="article-date">
+  <time class="dt-published" datetime="2025-06-01T11:57:48.000Z" itemprop="datePublished">2025-06-01</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2025/06/01/%E5%88%86%E5%B8%83%E5%BC%8F%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83/">分布式配置中心</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h1 id="1-配置中心核心功能"><a href="#1-配置中心核心功能" class="headerlink" title="1. 配置中心核心功能"></a>1. 配置中心核心功能</h1><h2 id="1-1-配置中心本质"><a href="#1-1-配置中心本质" class="headerlink" title="1.1 配置中心本质"></a>1.1 配置中心本质</h2><p>可以在不重新编译代码的情况下，改变程序运行逻辑、调整边界值、更新被调用模块路由信息等等</p>
+<p>配置是用来</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://libaoxuan-neil.github.io/2025/06/01/%E5%88%86%E5%B8%83%E5%BC%8F%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83/" data-id="cmea26zrm0008k4ts4vmq3d19" data-title="分布式配置中心" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%BB%84%E4%BB%B6/" rel="tag">微服务组件</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-Golanghttp模块" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2025/05/27/Golanghttp%E6%A8%A1%E5%9D%97/" class="article-date">
@@ -97,7 +580,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://libaoxuan-neil.github.io/2025/05/27/Golanghttp%E6%A8%A1%E5%9D%97/" data-id="cmb6kich70000i4ts24pth5ca" data-title="Golang Http模块" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      <a data-url="https://libaoxuan-neil.github.io/2025/05/27/Golanghttp%E6%A8%A1%E5%9D%97/" data-id="cmea26zrc0000k4tsfzv96x1o" data-title="Golang Http模块" class="article-share-link"><span class="fa fa-share">Share</span></a>
       
       
       
@@ -137,7 +620,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://libaoxuan-neil.github.io/2025/05/01/%E5%8A%A8%E6%80%81%E6%95%B0%E6%8D%AE%E6%BA%90%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/" data-id="cmb6kichg0003i4ts3wm53v00" data-title="动态数据源底层原理" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      <a data-url="https://libaoxuan-neil.github.io/2025/05/01/%E5%8A%A8%E6%80%81%E6%95%B0%E6%8D%AE%E6%BA%90%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/" data-id="cmea26zrm0009k4tsesb0ebg5" data-title="动态数据源底层原理" class="article-share-link"><span class="fa fa-share">Share</span></a>
       
       
       
@@ -191,7 +674,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://libaoxuan-neil.github.io/2025/04/19/hello-world/" data-id="cmb6kichc0001i4tsd19y0rs3" data-title="Hello World" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      <a data-url="https://libaoxuan-neil.github.io/2025/04/19/hello-world/" data-id="cmea26zrn000bk4tsbn9efyjg" data-title="Hello World" class="article-share-link"><span class="fa fa-share">Share</span></a>
       
       
       
@@ -216,7 +699,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Golang/" rel="tag">Golang</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Spring/" rel="tag">Spring</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Golang/" rel="tag">Golang</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Spring/" rel="tag">Spring</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/golang/" rel="tag">golang</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag">多线程</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%BB%84%E4%BB%B6/" rel="tag">微服务组件</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93%E8%BF%9E%E6%8E%A5%E6%B1%A0/" rel="tag">数据库连接池</a></li></ul>
     </div>
   </div>
 
@@ -226,7 +709,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/Golang/" style="font-size: 10px;">Golang</a> <a href="/tags/Spring/" style="font-size: 10px;">Spring</a>
+      <a href="/tags/Golang/" style="font-size: 10px;">Golang</a> <a href="/tags/Spring/" style="font-size: 10px;">Spring</a> <a href="/tags/golang/" style="font-size: 10px;">golang</a> <a href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" style="font-size: 10px;">多线程</a> <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%BB%84%E4%BB%B6/" style="font-size: 10px;">微服务组件</a> <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93%E8%BF%9E%E6%8E%A5%E6%B1%A0/" style="font-size: 10px;">数据库连接池</a>
     </div>
   </div>
 
@@ -235,7 +718,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/05/">May 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/04/">April 2025</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/08/">August 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/07/">July 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/06/">June 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/05/">May 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/04/">April 2025</a></li></ul>
     </div>
   </div>
 
@@ -248,15 +731,23 @@
       <ul>
         
           <li>
-            <a href="/2025/05/27/Golanghttp%E6%A8%A1%E5%9D%97/">Golang Http模块</a>
+            <a href="/2025/08/13/OPP-Klass%E6%A8%A1%E5%9E%8B/">OPP-Klass模型</a>
           </li>
         
           <li>
-            <a href="/2025/05/01/%E5%8A%A8%E6%80%81%E6%95%B0%E6%8D%AE%E6%BA%90%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/">动态数据源底层原理</a>
+            <a href="/2025/07/31/Java%E5%B9%B6%E5%8F%91%E6%9C%BA%E5%88%B6%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86/">Java并发机制底层原理</a>
           </li>
         
           <li>
-            <a href="/2025/04/19/hello-world/">Hello World</a>
+            <a href="/2025/07/13/HikariCP/">HikariCP</a>
+          </li>
+        
+          <li>
+            <a href="/2025/06/15/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a>
+          </li>
+        
+          <li>
+            <a href="/2025/06/07/gin/">gin</a>
           </li>
         
       </ul>
