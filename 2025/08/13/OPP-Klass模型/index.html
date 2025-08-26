@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>OPP-Klass模型 | Neil Lee</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="OOP-Klass 模型是 HotSpot JVM 用来表示 Java 对象和类的内部机制，它将 Java 对象在 JVM 中的表示分为两部分：OOP (Ordinary Object Pointer 普通对象指针) 和 Klass。 什么是 OOP-Klass 模型OOP-Klass 模型是 HotSpot JVM 设计的对象表示系统，它将 Java 对象的信息分为两部分：  OOP：表示对象实">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OPP-Klass模型">
+<meta property="og:url" content="https://libaoxuan-neil.github.io/2025/08/13/OPP-Klass%E6%A8%A1%E5%9E%8B/index.html">
+<meta property="og:site_name" content="Neil Lee">
+<meta property="og:description" content="OOP-Klass 模型是 HotSpot JVM 用来表示 Java 对象和类的内部机制，它将 Java 对象在 JVM 中的表示分为两部分：OOP (Ordinary Object Pointer 普通对象指针) 和 Klass。 什么是 OOP-Klass 模型OOP-Klass 模型是 HotSpot JVM 设计的对象表示系统，它将 Java 对象的信息分为两部分：  OOP：表示对象实">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://libaoxuan-neil.github.io/pictures/OPP-Klass%E6%A8%A1%E5%9E%8B/image-20250813220139969.png">
+<meta property="og:image" content="https://libaoxuan-neil.github.io/pictures/OPP-Klass%E6%A8%A1%E5%9E%8B/image-20250813222837766.png">
+<meta property="article:published_time" content="2025-08-13T13:37:01.000Z">
+<meta property="article:modified_time" content="2025-08-13T14:48:10.195Z">
+<meta property="article:author" content="Neil Lee">
+<meta property="article:tag" content="多线程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://libaoxuan-neil.github.io/pictures/OPP-Klass%E6%A8%A1%E5%9E%8B/image-20250813220139969.png">
+  
+    <link rel="alternate" href="/atom.xml" title="Neil Lee" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.2.0/css/fork-awesome.min.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Neil Lee</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+        
+          <a class="nav-icon" href="/atom.xml" title="RSS Feed"><span class="fa fa-rss"></span></a>
+        
+        <a class="nav-icon nav-search-btn" title="Search"><span class="fa fa-search"></span></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://libaoxuan-neil.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-OPP-Klass模型" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2025/08/13/OPP-Klass%E6%A8%A1%E5%9E%8B/" class="article-date">
+  <time class="dt-published" datetime="2025-08-13T13:37:01.000Z" itemprop="datePublished">2025-08-13</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      OPP-Klass模型
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>OOP-Klass 模型是 HotSpot JVM 用来表示 Java 对象和类的内部机制，它将 Java 对象在 JVM 中的表示分为两部分：OOP (Ordinary Object Pointer 普通对象指针) 和 Klass。</p>
+<h2 id="什么是-OOP-Klass-模型"><a href="#什么是-OOP-Klass-模型" class="headerlink" title="什么是 OOP-Klass 模型"></a>什么是 OOP-Klass 模型</h2><p>OOP-Klass 模型是 HotSpot JVM 设计的对象表示系统，它将 Java 对象的信息分为两部分：</p>
+<ul>
+<li><strong>OOP</strong>：表示对象实例数据，包含对象头和实例数据</li>
+<li><strong>Klass</strong>：表示类元数据和方法信息，描述 Java 类的结构</li>
+</ul>
+<p>这种设计的主要原因是避免在每个 Java 对象中都包含虚函数表(vtable)，从而节省内存空间。</p>
+<h2 id="OOP-结构"><a href="#OOP-结构" class="headerlink" title="OOP 结构"></a>OOP 结构</h2><p>OOP (Ordinary Object Pointer) 表示 Java 对象实例，主要包含三部分：</p>
+<ol>
+<li><strong>对象头</strong>：<ul>
+<li>Mark Word：存储对象运行时信息，如哈希码、GC 分代年龄、锁状态标志、线程 ID、时间戳等 </li>
+<li>元数据指针：指向方法区的 instanceKlass 实例</li>
+</ul>
+</li>
+<li><strong>实例数据</strong>：存储对象的实际字段值 </li>
+<li><strong>对齐填充</strong>：用于内存对齐的占位符</li>
+</ol>
+<p>在 JVM 源码中，oopDesc 类是 Java 对象的顶级基类，包含两个主要成员：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">oopDesc</span> &#123;</span><br><span class="line">	<span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">VMStructs</span>;</span><br><span class="line">	<span class="keyword">private</span>:</span><br><span class="line">		<span class="keyword">volatile</span> markOop _mark; <span class="comment">//对象头</span></span><br><span class="line">		<span class="keyword">union</span> <span class="title class_">_metadata</span> &#123;</span><br><span class="line">			wideKlassOop _klass; <span class="comment">//普通指针</span></span><br><span class="line">			narrowOop _compressed_klass; <span class="comment">//压缩类指针</span></span><br><span class="line">		&#125; _metadata;</span><br><span class="line">	<span class="keyword">private</span>:</span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">instanceOopDesc</span> : <span class="keyword">public</span> oopDesc &#123; <span class="comment">//普通对象类型</span></span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">arrayOopDesc</span> : <span class="keyword">public</span> oopDesc &#123; <span class="comment">//数组对象类型</span></span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Klass-结构"><a href="#Klass-结构" class="headerlink" title="Klass 结构"></a>Klass 结构</h2><p>Klass 是 Java 类在 JVM 中的 C++ 对等体，主要功能包括：</p>
+<ol>
+<li>实现语言层面的 Java 类</li>
+<li>实现 Java 对象的分发功能</li>
+</ol>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//用来描述语言层的类型</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Klass</span> : <span class="keyword">public</span> Metadata &#123;</span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">	<span class="comment">//指向java.lang.Class的 instance，mirroring this class即是这个类的影子类</span></span><br><span class="line">	OopHandle _java_mirror;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//在虚拟机层面描述一个Java类</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">InstanceKlass</span>: <span class="keyword">public</span> Klass &#123;</span><br><span class="line">	<span class="comment">//省略不相干的代码</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>当 JVM 加载一个 class 文件时，会在方法区创建 instanceKlass 对象，存储类的元数据</strong>，<strong>在 Java 8 及以后版本，instanceKlass 存放在元空间(Metaspace)</strong> </p>
+<p>包括：</p>
+<ul>
+<li>常量池</li>
+<li>字段</li>
+<li>方法</li>
+<li>访问标志</li>
+<li>类名等</li>
+</ul>
+<p>Klass 类继承关系复杂，包含虚函数表，支持方法分发和多态。</p>
+<h3 id="java-mirror"><a href="#java-mirror" class="headerlink" title="_java_mirror"></a>_java_mirror</h3><p>在HotSpot JVM的OOP-Klass模型中，<code>_java_mirror</code>是一个非常重要的概念，它连接了JVM内部的Klass表示和Java语言层面的Class对象。Java层的java.lang.Class类型的实例也是一个普通对象，所以Class对象也就对应到一个instanceOopDesc实例。这个instanceOopDesc实例，被称为JVM层InstanceKlass实例的“Java镜像”，二者的关系如图所示:</p>
+<p><img src="/../pictures/OPP-Klass%E6%A8%A1%E5%9E%8B/image-20250813220139969.png" alt="image-20250813220139969"></p>
+<p><strong>基本概念</strong></p>
+<p><code>_java_mirror</code>是Klass结构中的一个字段，它指向Java语言中的java.lang.Class对象实例。简单来说：</p>
+<ul>
+<li><strong>Klass</strong>：JVM内部用C++表示的类元数据（在方法区&#x2F;元空间）</li>
+<li><strong>java.lang.Class</strong>：Java语言层面的类对象（在堆中）</li>
+<li><code>_java_mirror</code>：连接这两者的桥梁</li>
+</ul>
+<p><strong>作用</strong></p>
+<ul>
+<li><p>双向连接</p>
+<ul>
+<li>从Klass可以找到对应的Class对象（通过<code>_java_mirror</code>）</li>
+<li>从Class对象可以找到对应的Klass（Class对象中有指向Klass的指针）</li>
+</ul>
+</li>
+<li><p>隔离JVM实现细节</p>
+<ul>
+<li>Java程序员看到的是java.lang.Class对象</li>
+<li>JVM内部使用的是Klass结构</li>
+<li><code>_java_mirror</code>保持了这种抽象隔离</li>
+</ul>
+</li>
+<li><p>支持反射机制</p>
+<ul>
+<li>Java的反射API（如Class.getMethod()等）最终都是通过<code>_java_mirror</code>找到对应的Klass元数据来实现的。</li>
+</ul>
+</li>
+</ul>
+<p><strong>生命周期</strong></p>
+<ol>
+<li><strong>类加载时</strong>：<ul>
+<li>JVM创建Klass结构（在元空间）</li>
+<li>创建对应的java.lang.Class对象（在堆中）</li>
+<li>设置Klass的<code>_java_mirror</code>指向该Class对象</li>
+</ul>
+</li>
+<li><strong>类卸载时</strong>：<ul>
+<li>清除<code>_java_mirror</code>引用</li>
+<li>回收Klass和Class对象</li>
+</ul>
+</li>
+</ol>
+<p><strong>实际示例</strong></p>
+<p>对于如下Java代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Class&lt;String&gt; strClass = String.class;</span><br></pre></td></tr></table></figure>
+
+<p>在JVM内部：</p>
+<ol>
+<li><code>String.class</code>实际上访问的是<code>_java_mirror</code>指向的对象</li>
+<li>这个对象是java.lang.Class的实例</li>
+<li>通过这个Class对象可以获取所有反射信息</li>
+</ol>
+<p><strong>与压缩指针的关系</strong></p>
+<p>当启用压缩指针(-XX:+UseCompressedOops)时：</p>
+<ul>
+<li><code>_java_mirror</code>会使用压缩形式存储</li>
+<li>但逻辑关系保持不变</li>
+</ul>
+<p><strong>设计优势</strong></p>
+<ol>
+<li><strong>安全隔离</strong>：Java代码不能直接访问JVM内部数据结构</li>
+<li><strong>内存管理</strong>：Class对象在堆中，可以被GC管理</li>
+<li><strong>灵活性</strong>：允许JVM内部和Java层有不同的类表示形式</li>
+<li><strong>反射支持</strong>：为反射API提供基础支持</li>
+</ol>
+<h2 id="OOP-Klass-模型示例"><a href="#OOP-Klass-模型示例" class="headerlink" title="OOP-Klass 模型示例"></a>OOP-Klass 模型示例</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Model</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="type">int</span> <span class="variable">a</span> <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> b;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">Model</span><span class="params">(<span class="type">int</span> b)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.b = b;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">    <span class="type">Model</span> <span class="variable">modelA</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Model</span>(<span class="number">2</span>);</span><br><span class="line">    <span class="type">Model</span> <span class="variable">modelB</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Model</span>(<span class="number">3</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在 JVM 中会：</p>
+<ol>
+<li>加载 Model 类时创建 instanceKlass</li>
+<li>new Model() 时创建 instanceOopDesc</li>
+</ol>
+<p><img src="/../pictures/OPP-Klass%E6%A8%A1%E5%9E%8B/image-20250813222837766.png" alt="image-20250813222837766"></p>
+<h2 id="参考文章"><a href="#参考文章" class="headerlink" title="参考文章"></a>参考文章</h2><p><a target="_blank" rel="noopener" href="https://juejin.cn/post/7003564426355802142?from=search-suggest">JAVA的OOP-Klass内存模型</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://libaoxuan-neil.github.io/2025/08/13/OPP-Klass%E6%A8%A1%E5%9E%8B/" data-id="cmesqotdp000428tscuy0775o" data-title="OPP-Klass模型" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag">多线程</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2025/08/26/Golang%E5%9F%BA%E7%A1%80/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Golang基础
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2025/07/13/HikariCP/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">HikariCP</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Golang/" rel="tag">Golang</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Spring/" rel="tag">Spring</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/golang/" rel="tag">golang</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag">多线程</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%BB%84%E4%BB%B6/" rel="tag">微服务组件</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93%E8%BF%9E%E6%8E%A5%E6%B1%A0/" rel="tag">数据库连接池</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Golang/" style="font-size: 10px;">Golang</a> <a href="/tags/Spring/" style="font-size: 10px;">Spring</a> <a href="/tags/golang/" style="font-size: 20px;">golang</a> <a href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" style="font-size: 10px;">多线程</a> <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%BB%84%E4%BB%B6/" style="font-size: 10px;">微服务组件</a> <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93%E8%BF%9E%E6%8E%A5%E6%B1%A0/" style="font-size: 10px;">数据库连接池</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/08/">August 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/07/">July 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/06/">June 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/05/">May 2025</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/04/">April 2025</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2025/08/26/Golang%E5%9F%BA%E7%A1%80/">Golang基础</a>
+          </li>
+        
+          <li>
+            <a href="/2025/08/13/OPP-Klass%E6%A8%A1%E5%9E%8B/">OPP-Klass模型</a>
+          </li>
+        
+          <li>
+            <a href="/2025/07/13/HikariCP/">HikariCP</a>
+          </li>
+        
+          <li>
+            <a href="/2025/06/15/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a>
+          </li>
+        
+          <li>
+            <a href="/2025/06/07/gin/">gin</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2025 Neil Lee<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.6.4.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
