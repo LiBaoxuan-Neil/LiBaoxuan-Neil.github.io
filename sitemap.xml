@@ -2,13 +2,28 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://libaoxuan-neil.github.io/post/readme/</loc>
-    <lastmod>2019-01-09T00:00:00+00:00</lastmod>
+    <loc>https://libaoxuan-neil.github.io/categories/</loc>
+    <lastmod>2026-02-04T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://libaoxuan-neil.github.io/</loc>
-    <lastmod>2019-01-09T00:00:00+00:00</lastmod>
+    <lastmod>2026-02-04T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://libaoxuan-neil.github.io/tags/jvm/</loc>
+    <lastmod>2026-02-04T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://libaoxuan-neil.github.io/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</loc>
+    <lastmod>2026-02-04T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://libaoxuan-neil.github.io/post/</loc>
+    <lastmod>2026-02-04T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://libaoxuan-neil.github.io/tags/</loc>
+    <lastmod>2026-02-04T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://libaoxuan-neil.github.io/categories/tech/</loc>
+    <lastmod>2026-02-04T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://libaoxuan-neil.github.io/post/readme/</loc>
     <lastmod>2019-01-09T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://libaoxuan-neil.github.io/about/</loc>
@@ -17,12 +32,8 @@
   </url><url>
     <loc>https://libaoxuan-neil.github.io/search/placeholder/</loc>
   </url><url>
-    <loc>https://libaoxuan-neil.github.io/categories/</loc>
-  </url><url>
     <loc>https://libaoxuan-neil.github.io/archive/</loc>
   </url><url>
     <loc>https://libaoxuan-neil.github.io/search/</loc>
-  </url><url>
-    <loc>https://libaoxuan-neil.github.io/tags/</loc>
   </url>
 </urlset>
