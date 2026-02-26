@@ -26,7 +26,7 @@
     <meta property="twitter:description" content="" />
     
 
-    <meta property="og:url" content="https://libaoxuan-neil.github.io/pictures/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/" />
+    <meta property="og:url" content="https://libaoxuan-neil.github.io/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/" />
 
     
     <meta property="twitter:card" content="summary" />
@@ -226,12 +226,12 @@
 <li>统一执行规范：所有JVM实现，都必须按照JVM规范，提供字节码的加载、执行、内存管理等核心功能，确保同一字节码文件，在不同JVM上的运行结果一致（排除底层硬件性能差异）。</li>
 </ul>
 <p>
-  <img src="../pictures/JVM%e5%9f%ba%e7%a1%80%e5%8e%9f%e7%90%8601%ef%bc%9a%e4%b8%80%e6%96%87%e5%90%83%e9%80%8fJVM%e6%95%b4%e4%bd%93%e6%9e%b6%e6%9e%84/f0985e65-3aa4-4e06-b9a7-7373b2d338e2.jpg" alt="f0985e65-3aa4-4e06-b9a7-7373b2d338e2">
+  <img src="../../pictures/JVM%e5%9f%ba%e7%a1%80%e5%8e%9f%e7%90%8601%ef%bc%9a%e4%b8%80%e6%96%87%e5%90%83%e9%80%8fJVM%e6%95%b4%e4%bd%93%e6%9e%b6%e6%9e%84/f0985e65-3aa4-4e06-b9a7-7373b2d338e2.jpg" alt="f0985e65-3aa4-4e06-b9a7-7373b2d338e2">
 
 </p>
 <p>正是这一统一规范，才真正实现了Java软件的平台无关性——Java代码编译时，无需针对具体硬件平台做适配，只需面向JVM这一“通用虚拟机器”进行编译；而JVM则会根据自身运行的底层环境，完成字节码到底层指令的转换，让程序在不同平台上稳定运行。</p>
 <p>
-  <img src="../pictures/JVM%e5%9f%ba%e7%a1%80%e5%8e%9f%e7%90%8601%ef%bc%9a%e4%b8%80%e6%96%87%e5%90%83%e9%80%8fJVM%e6%95%b4%e4%bd%93%e6%9e%b6%e6%9e%84/624f50ff-f7d7-4f09-91a7-f1fdd88e63f5.jpg" alt="624f50ff-f7d7-4f09-91a7-f1fdd88e63f5">
+  <img src="../../pictures/JVM%e5%9f%ba%e7%a1%80%e5%8e%9f%e7%90%8601%ef%bc%9a%e4%b8%80%e6%96%87%e5%90%83%e9%80%8fJVM%e6%95%b4%e4%bd%93%e6%9e%b6%e6%9e%84/624f50ff-f7d7-4f09-91a7-f1fdd88e63f5.jpg" alt="624f50ff-f7d7-4f09-91a7-f1fdd88e63f5">
 
 </p>
 <p>这里补充一个小知识点：JVM规范只定义了“必须实现的功能和标准”，但没有规定具体的实现方式。这就导致了不同厂商的JVM，在遵循规范的基础上，会有不同的优化方向——比如HotSpot侧重综合性能和兼容性，OpenJ9侧重轻量和启动速度，Zing侧重低延迟，我们可以根据项目需求选择合适的JVM实现。</p>
