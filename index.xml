@@ -2,45 +2,45 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Fragments of Logic</title>
-    <link>http://localhost:1313/</link>
+    <link>https://libaoxuan-neil.github.io/</link>
     <description>Recent content on Fragments of Logic</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <lastBuildDate>Wed, 04 Feb 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://libaoxuan-neil.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>JVM 基础原理 01：一文吃透 JVM 整体架构</title>
-      <link>http://localhost:1313/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</link>
+      <link>https://libaoxuan-neil.github.io/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</link>
       <pubDate>Wed, 04 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</guid>
+      <guid>https://libaoxuan-neil.github.io/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</guid>
       <description>&lt;p&gt;作为Java开发者，我们每天都在与JVM打交道，但真正能说清其核心架构和底层逻辑的人却不多。无论是日常开发中的性能优化、内存泄漏排查，JVM都是绕不开的核心。今天，我将以架构师的视角，带大家重新认识JVM，拆解其核心规范，帮大家从“会用”升级到“懂原理”。&lt;/p&gt;</description>
     </item>
     <item>
       <title></title>
-      <link>http://localhost:1313/about/</link>
+      <link>https://libaoxuan-neil.github.io/about/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/about/</guid>
+      <guid>https://libaoxuan-neil.github.io/about/</guid>
       <description>&lt;h2 id=&#34;about-me&#34;&gt;About Me&lt;/h2&gt;&#xA;&lt;p&gt;&lt;strong&gt;&lt;em&gt;Baoxuan Li&lt;/em&gt;&lt;/strong&gt; is a software engineer at &lt;a href=&#34;https://www.inovance.com/&#34;&gt;Inovance&lt;/a&gt;.&lt;/p&gt;&#xA;&lt;p&gt;Feel free to connect Baoxuan at Github, leave your thoughts in his blog or share your ideas by &lt;a href=&#34;mailto:2086965923@qq.com&#34;&gt;writing him an email&lt;/a&gt;.&lt;/p&gt;&#xA;&lt;h2 id=&#34;open-source-projects&#34;&gt;Open Source Projects&lt;/h2&gt;&#xA;&lt;table&gt;&#xA;  &lt;thead&gt;&#xA;      &lt;tr&gt;&#xA;          &lt;th&gt;Project&lt;/th&gt;&#xA;          &lt;th&gt;Role&lt;/th&gt;&#xA;          &lt;th&gt;Website&lt;/th&gt;&#xA;          &lt;th&gt;GitHub&lt;/th&gt;&#xA;      &lt;/tr&gt;&#xA;  &lt;/thead&gt;&#xA;  &lt;tbody&gt;&#xA;  &lt;/tbody&gt;&#xA;&lt;/table&gt;</description>
     </item>
     <item>
       <title></title>
-      <link>http://localhost:1313/notes/</link>
+      <link>https://libaoxuan-neil.github.io/notes/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/notes/</guid>
+      <guid>https://libaoxuan-neil.github.io/notes/</guid>
       <description>&lt;h2 id=&#34;go-语言学习笔记&#34;&gt;&lt;a href=&#34;https://zhaohuabing.com/learning-golang&#34;&gt;Go 语言学习笔记&lt;/a&gt;&lt;/h2&gt;&#xA;&lt;h2 id=&#34;envoy-学习笔记&#34;&gt;&lt;a href=&#34;https://zhaohuabing.com/learning-envoy&#34;&gt;Envoy 学习笔记&lt;/a&gt;&lt;/h2&gt;</description>
     </item>
     <item>
       <title></title>
-      <link>http://localhost:1313/search/placeholder/</link>
+      <link>https://libaoxuan-neil.github.io/search/placeholder/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/search/placeholder/</guid>
+      <guid>https://libaoxuan-neil.github.io/search/placeholder/</guid>
       <description></description>
     </item>
     <item>
       <title>Posts Archive</title>
-      <link>http://localhost:1313/archive/</link>
+      <link>https://libaoxuan-neil.github.io/archive/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/archive/</guid>
+      <guid>https://libaoxuan-neil.github.io/archive/</guid>
       <description></description>
     </item>
   </channel>
