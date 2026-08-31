@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Fragments of Logic">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="http://localhost:1313//img/downloaded-image.png">
+    <meta property="twitter:image" content="http://localhost:1313//img/downloaded-image.png" />
+    
+
+    
+    <meta name="title" content="深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应" />
+    <meta property="og:title" content="深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应" />
+    <meta property="twitter:title" content="深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应" />
+    
+
+    
+    <meta name="description" content="从 OpenAI 官方 SDK 的核心类型 ChatCompletionCreateParams，到 /chat/completions 接口规范，再到 SSE 流式协议与 data: [DONE] 连接关闭——把向大模型发一条聊天请求的完整链路讲清楚。">
+    <meta property="og:description" content="从 OpenAI 官方 SDK 的核心类型 ChatCompletionCreateParams，到 /chat/completions 接口规范，再到 SSE 流式协议与 data: [DONE] 连接关闭——把向大模型发一条聊天请求的完整链路讲清楚。" />
+    <meta property="twitter:description" content="从 OpenAI 官方 SDK 的核心类型 ChatCompletionCreateParams，到 /chat/completions 接口规范，再到 SSE 流式协议与 data: [DONE] 连接关闭——把向大模型发一条聊天请求的完整链路讲清楚。" />
+    
+
+    <meta property="og:url" content="http://localhost:1313/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/" />
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应 | Where Code Meets Contemplation</title>
+
+    <link rel="canonical" href="/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/">
+
+    
+
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.min.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Fragments of Logic</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                        
+                        <li>
+                            <a href="/categories/tech/">tech</a>
+                        </li>
+                        
+                    
+                    
+		    
+                        <li><a href="/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/notes//">NOTES</a></li>
+                    
+                        <li><a href="/about//">ABOUT</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/img/downloaded-image.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/openai" title="OpenAI">
+                            OpenAI
+                        </a>
+                        
+                        <a class="tag" href="/tags/chat-completions" title="Chat Completions">
+                            Chat Completions
+                        </a>
+                        
+                        <a class="tag" href="/tags/sse" title="SSE">
+                            SSE
+                        </a>
+                        
+                        <a class="tag" href="/tags/api" title="API">
+                            API
+                        </a>
+                        
+                        <a class="tag" href="/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94" title="流式响应">
+                            流式响应
+                        </a>
+                        
+                    </div>
+                    <h1>深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                LiBaoxuan
+                             
+                            on 
+                            Monday, August 31, 2026
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>当你第一次用代码调用 <code>gpt-4o</code> 时，最先遇到的往往不是一个&quot;模型&quot;，而是一长串需要填对的参数：模型 ID 填什么？消息数组怎么组织？要不要开流式传输？这些问题的答案，都藏在 OpenAI 官方 SDK 的核心类型 <code>ChatCompletionCreateParams</code> 和它背后那个最常被调用的接口 <code>/chat/completions</code> 之中。</p>
+<p>这篇文章想做一件事：把&quot;怎么正确地向 OpenAI 发一条聊天请求&quot;这件事，从<strong>参数契约</strong>、<strong>接口规范</strong>、<strong>流式协议</strong>到<strong>连接关闭</strong>，串成一条完整的链路讲清楚。无论你用的是 TypeScript、Python 还是 Java，读完都应该能明白每行代码背后在约束什么。</p>
+<h2 id="一chatcompletioncreateparams类型安全的请求参数契约">一、ChatCompletionCreateParams：类型安全的请求参数契约</h2>
+<h3 id="11-它到底是什么">1.1 它到底是什么</h3>
+<p><code>ChatCompletionCreateParams</code> 是 OpenAI API 官方 SDK 中的一个核心类型（或类），用于规范地构建调用聊天补全（Chat Completions）接口（<code>/chat/completions</code>）的请求参数。</p>
+<p>简单来说，当你想通过代码调用像 <code>gpt-4o</code> 这样的模型时，就需要创建一个该类型的对象，并填入所有必要的参数。</p>
+<h3 id="12-核心作用类型安全与参数规范">1.2 核心作用：类型安全与参数规范</h3>
+<p>它的主要作用是<strong>类型安全</strong>和<strong>参数规范</strong>。它明确定义了哪些参数是必需的、哪些是可选的，以及每个参数的类型和取值范围。这能帮助你在编写代码时避免错误，比如忘记提供 <code>messages</code> 或 <code>model</code> 字段。</p>
+<h3 id="13-跨语言的表现形式">1.3 跨语言的表现形式</h3>
+<p>这个契约在不同语言里的&quot;长相&quot;并不一样：</p>
+<ul>
+<li><strong>TypeScript</strong>：被定义为一个<strong>联合类型（Union Type）</strong>，由 <code>ChatCompletionCreateParamsNonStreaming</code>（非流式）和 <code>ChatCompletionCreateParamsStreaming</code>（流式）组成。</li>
+<li><strong>Python / Java 等</strong>：通常表现为一个<strong>类（Class）<strong>或</strong>类型提示（TypedDict）</strong>。</li>
+</ul>
+<p>也就是说，无论用哪种语言，你填的每一个字段、每一种取值，最终都要满足同一份&quot;契约&quot;。</p>
+<h3 id="14-关键参数解析">1.4 关键参数解析</h3>
+<p><code>ChatCompletionCreateParams</code> 包含众多参数，以下是最核心和常用的一些：</p>
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">参数名</th>
+          <th style="text-align: left">类型</th>
+          <th style="text-align: left">是否必需</th>
+          <th style="text-align: left">描述</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left"><strong><code>messages</code></strong></td>
+          <td style="text-align: left"><code>Array&lt;Message&gt;</code></td>
+          <td style="text-align: left"><strong>是</strong></td>
+          <td style="text-align: left">对话消息列表，是模型生成回复的依据。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><strong><code>model</code></strong></td>
+          <td style="text-align: left"><code>string</code></td>
+          <td style="text-align: left"><strong>是</strong></td>
+          <td style="text-align: left">要使用的模型 ID，例如 <code>&quot;gpt-4o&quot;</code>、<code>&quot;gpt-3.5-turbo&quot;</code> 等。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>stream</code></td>
+          <td style="text-align: left"><code>boolean</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">是否启用流式传输，即让模型逐词生成回复。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>temperature</code></td>
+          <td style="text-align: left"><code>number</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">控制生成文本的随机性，取值范围 0–2，值越低越确定和保守。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>max_completion_tokens</code></td>
+          <td style="text-align: left"><code>number</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">生成回复的最大 token 数量，用于控制输出长度。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>tools</code></td>
+          <td style="text-align: left"><code>Array&lt;Tool&gt;</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">定义模型可以调用的工具或函数列表，用于实现 Function Calling。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>response_format</code></td>
+          <td style="text-align: left"><code>object</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">指定模型输出的格式，如纯文本（<code>text</code>）或结构化 JSON（<code>json_object</code>）。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>frequency_penalty</code></td>
+          <td style="text-align: left"><code>number</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">根据 token 在文本中出现的频率进行惩罚，取值范围 -2.0 到 2.0，用于减少重复。</td>
+      </tr>
+  </tbody>
+</table>
+<p>可以看到，<code>messages</code> 和 <code>model</code> 是两个&quot;没有它们请求就不成立&quot;的字段，其余参数则是用来<strong>精细控制模型行为</strong>的旋钮。</p>
+<h2 id="二chatcompletions驱动聊天模型的核心接口">二、/chat/completions：驱动聊天模型的核心接口</h2>
+<p><code>ChatCompletionCreateParams</code> 只是&quot;请求该怎么填&quot;的定义；真正接收请求、返回回复的，是 OpenAI API 最核心的接口 <code>/chat/completions</code>。</p>
+<h3 id="21-接口核心信息">2.1 接口核心信息</h3>
+<ul>
+<li><strong>接口名称</strong>：Create chat completion</li>
+<li><strong>功能描述</strong>：为给定的聊天对话创建模型回复</li>
+<li><strong>请求路径</strong>：<code>POST /v1/chat/completions</code></li>
+<li><strong>完整 URL</strong>：<code>https://api.openai.com/v1/chat/completions</code></li>
+<li><strong>返回结果</strong>：一个 <code>ChatCompletion</code> 对象；如果请求中设置了 <code>stream: true</code>，则返回一个流式的 <code>ChatCompletionChunk</code> 对象序列</li>
+</ul>
+<p>简单来说，你向这个接口发送一个对话历史（<code>messages</code>），模型会根据这些信息生成并返回回复。</p>
+<h3 id="22-请求头headers">2.2 请求头（Headers）</h3>
+<p>在发起请求时，HTTP 头部需要包含以下信息：</p>
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">参数名</th>
+          <th style="text-align: left">是否必需</th>
+          <th style="text-align: left">描述</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left"><strong><code>Content-Type</code></strong></td>
+          <td style="text-align: left">是</td>
+          <td style="text-align: left">必须为 <code>application/json</code></td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><strong><code>Authorization</code></strong></td>
+          <td style="text-align: left">是</td>
+          <td style="text-align: left">你的 API 密钥，格式为 <code>Bearer YOUR_API_KEY</code></td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="23-核心请求体参数body-parameters">2.3 核心请求体参数（Body Parameters）</h3>
+<p>请求体是一个 JSON 对象，包含了控制模型生成的所有参数。核心字段与 <code>ChatCompletionCreateParams</code> 高度对应：</p>
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">参数名</th>
+          <th style="text-align: left">类型</th>
+          <th style="text-align: left">是否必需</th>
+          <th style="text-align: left">描述</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left"><strong><code>messages</code></strong></td>
+          <td style="text-align: left"><code>array</code></td>
+          <td style="text-align: left"><strong>是</strong></td>
+          <td style="text-align: left">对话消息列表。每个消息对象都包含 <code>role</code>（如 <code>system</code>、<code>user</code>、<code>assistant</code>）和 <code>content</code>（消息内容）。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><strong><code>model</code></strong></td>
+          <td style="text-align: left"><code>string</code></td>
+          <td style="text-align: left"><strong>是</strong></td>
+          <td style="text-align: left">要使用的模型 ID，例如 <code>gpt-4o</code>、<code>gpt-3.5-turbo</code>。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>stream</code></td>
+          <td style="text-align: left"><code>boolean</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">是否启用流式传输。若为 <code>true</code>，模型会逐词（或逐片段）生成回复。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>temperature</code></td>
+          <td style="text-align: left"><code>number</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">控制生成文本的随机性，取值范围 0–2。值越低，输出越确定和保守。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>max_completion_tokens</code></td>
+          <td style="text-align: left"><code>number</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">生成回复的最大 token 数量，用于控制输出长度。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>tools</code></td>
+          <td style="text-align: left"><code>array</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">定义模型可以调用的工具或函数列表，用于实现 Function Calling。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>response_format</code></td>
+          <td style="text-align: left"><code>object</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">指定模型输出的格式，如 <code>text</code> 或 <code>json_object</code>。</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>frequency_penalty</code></td>
+          <td style="text-align: left"><code>number</code></td>
+          <td style="text-align: left">否</td>
+          <td style="text-align: left">根据 token 在文本中出现的频率进行惩罚，取值范围 -2.0 到 2.0，用于减少重复。</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="24-响应格式response">2.4 响应格式（Response）</h3>
+<p>一个典型的非流式响应（<code>stream: false</code>）是一个 <code>ChatCompletion</code> 对象：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">&#34;id&#34;</span>: <span style="color:#f1fa8c">&#34;chatcmpl-abc123&#34;</span>,        <span style="color:#6272a4">// 本次生成的唯一ID
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>  <span style="color:#ff79c6">&#34;object&#34;</span>: <span style="color:#f1fa8c">&#34;chat.completion&#34;</span>,    <span style="color:#6272a4">// 对象类型
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>  <span style="color:#ff79c6">&#34;created&#34;</span>: <span style="color:#bd93f9">1677858242</span>,          <span style="color:#6272a4">// 生成时的Unix时间戳
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>  <span style="color:#ff79c6">&#34;model&#34;</span>: <span style="color:#f1fa8c">&#34;gpt-4o&#34;</span>,              <span style="color:#6272a4">// 使用的模型
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>  <span style="color:#ff79c6">&#34;choices&#34;</span>: [                    <span style="color:#6272a4">// 生成的回复选项列表
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">&#34;index&#34;</span>: <span style="color:#bd93f9">0</span>,                 <span style="color:#6272a4">// 选项索引
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>      <span style="color:#ff79c6">&#34;message&#34;</span>: {                <span style="color:#6272a4">// 模型生成的回复消息
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>        <span style="color:#ff79c6">&#34;role&#34;</span>: <span style="color:#f1fa8c">&#34;assistant&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">&#34;content&#34;</span>: <span style="color:#f1fa8c">&#34;你好！今天有什么可以帮你的？&#34;</span>
+</span></span><span style="display:flex;"><span>      },
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">&#34;finish_reason&#34;</span>: <span style="color:#f1fa8c">&#34;stop&#34;</span>     <span style="color:#6272a4">// 生成结束的原因，如 &#34;stop&#34;, &#34;length&#34; 等
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>    }
+</span></span><span style="display:flex;"><span>  ],
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">&#34;usage&#34;</span>: {                      <span style="color:#6272a4">// Token使用情况统计
+</span></span></span><span style="display:flex;"><span><span style="color:#6272a4"></span>    <span style="color:#ff79c6">&#34;prompt_tokens&#34;</span>: <span style="color:#bd93f9">10</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">&#34;completion_tokens&#34;</span>: <span style="color:#bd93f9">20</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">&#34;total_tokens&#34;</span>: <span style="color:#bd93f9">30</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="25-请求示例curl">2.5 请求示例（cURL）</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl https://api.openai.com/v1/chat/completions <span style="color:#f1fa8c">\
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c"></span>  -H <span style="color:#f1fa8c">&#34;Content-Type: application/json&#34;</span> <span style="color:#f1fa8c">\
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c"></span>  -H <span style="color:#f1fa8c">&#34;Authorization: Bearer YOUR_API_KEY&#34;</span> <span style="color:#f1fa8c">\
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c"></span>  -d <span style="color:#f1fa8c">&#39;{
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">    &#34;model&#34;: &#34;gpt-4o&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">    &#34;messages&#34;: [
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">      {&#34;role&#34;: &#34;system&#34;, &#34;content&#34;: &#34;你是一个乐于助人的助手。&#34;},
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">      {&#34;role&#34;: &#34;user&#34;, &#34;content&#34;: &#34;你好！&#34;}
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">    ]
+</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">  }&#39;</span>
+</span></span></code></pre></div><h2 id="三流式响应与-sse-协议">三、流式响应与 SSE 协议</h2>
+<p>当你在调用 <code>/chat/completions</code> 接口时设置 <code>stream: true</code>，使用的就是 <strong>Server-Sent Events (SSE)</strong> 协议。</p>
+<h3 id="31-为什么是-sse">3.1 为什么是 SSE</h3>
+<p>SSE 是一种基于 HTTP 的轻量级实时通信协议，非常适合文本流式传输。它恰好契合了大模型生成内容的场景：客户端发送一次请求后，只需持续接收模型生成的文本片段即可。</p>
+<h3 id="32-sse-协议的核心特征">3.2 SSE 协议的核心特征</h3>
+<ul>
+<li><strong>基于 HTTP，简单易用</strong>：SSE 复用了标准的 HTTP 协议，无需像 WebSocket 那样进行协议升级，开发和调试都更为方便。</li>
+<li><strong>服务端单向推送</strong>：数据只能由服务器单向推送给客户端。这恰好符合大模型生成内容的场景。</li>
+<li><strong>长连接</strong>：客户端发起请求后，服务器会保持这个 HTTP 连接不断开，用于持续发送数据。</li>
+<li><strong>标准 MIME 类型</strong>：SSE 数据流使用特定的 MIME 类型 <code>text/event-stream</code> 进行传输。</li>
+</ul>
+<h3 id="33-sse-数据流的格式">3.3 SSE 数据流的格式</h3>
+<p>启用 <code>stream: true</code> 后，服务器通过 SSE 格式返回数据，基本结构如下：</p>
+<ol>
+<li>每个数据块以 <code>data: </code> 前缀开头，后面跟着一个 JSON 字符串。</li>
+<li>JSON 对象包含了模型生成的文本片段（通常在 <code>choices[0].delta.content</code> 字段中）。</li>
+<li>每个数据块之间用空行分隔。</li>
+<li>流以 <code>data: [DONE]</code> 标记结束。</li>
+</ol>
+<p>一个典型的 SSE 响应片段：</p>
+<pre tabindex="0"><code>data: {&#34;id&#34;:&#34;chatcmpl-123&#34;,&#34;object&#34;:&#34;chat.completion.chunk&#34;,&#34;choices&#34;:[{&#34;index&#34;:0,&#34;delta&#34;:{&#34;content&#34;:&#34;你好&#34;},&#34;finish_reason&#34;:null}]}
+
+data: {&#34;id&#34;:&#34;chatcmpl-123&#34;,&#34;object&#34;:&#34;chat.completion.chunk&#34;,&#34;choices&#34;:[{&#34;index&#34;:0,&#34;delta&#34;:{&#34;content&#34;:&#34;，世界&#34;},&#34;finish_reason&#34;:null}]}
+
+data: [DONE]
+</code></pre><h3 id="34-与-websocket-的对比">3.4 与 WebSocket 的对比</h3>
+<table>
+  <thead>
+      <tr>
+          <th style="text-align: left">维度</th>
+          <th style="text-align: left">SSE (Server-Sent Events)</th>
+          <th style="text-align: left">WebSocket</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left">通信方向</td>
+          <td style="text-align: left">基于 HTTP 的<strong>单向</strong>通信</td>
+          <td style="text-align: left"><strong>双向、全双工</strong>通信</td>
+      </tr>
+      <tr>
+          <td style="text-align: left">适用场景</td>
+          <td style="text-align: left">服务器向客户端推送数据（如文本生成）</td>
+          <td style="text-align: left">客户端与服务器频繁互动（如在线游戏、实时聊天）</td>
+      </tr>
+  </tbody>
+</table>
+<p>对于调用大模型 API 生成文本，单向的 SSE 是更简单、更高效的选择。</p>
+<h2 id="四data-done-与连接关闭健壮实现的标准做法">四、data: [DONE] 与连接关闭：健壮实现的标准做法</h2>
+<p>这里有一个容易被忽略、也容易踩坑的细节。</p>
+<h3 id="41-关闭发生在应用层而非协议层">4.1 &ldquo;关闭&quot;发生在应用层，而非协议层</h3>
+<p><code>data: [DONE]</code> 输出后，连接<strong>通常会被关闭</strong>，但这个&quot;关闭&quot;行为发生在<strong>应用层面</strong>，而不是由 SSE 协议自身强制规定的。</p>
+<h3 id="42-连接关闭的两种方式">4.2 连接关闭的两种方式</h3>
+<ol>
+<li>
+<p><strong>服务端主动关闭（常规做法）</strong>
+按照 OpenAI 的协议和大多数网关的实现，在发送完 <code>data: [DONE]</code> 这个终止信号后，<strong>服务端会主动关闭底层的 TCP 连接</strong>。这是最标准、最常见的做法。例如，Ferro Labs AI Gateway 的文档就明确指出，在写入 <code>[DONE]</code> 标记后会&quot;关闭连接&rdquo;。</p>
+</li>
+<li>
+<p><strong>客户端主动关闭（最佳实践）</strong>
+出于健壮性考虑，<strong>最佳实践是让客户端在收到 <code>[DONE]</code> 信号后，主动关闭连接</strong>。这样做可以避免因网络问题或服务端未及时断开而导致的资源浪费或程序&quot;挂起&quot;。</p>
+</li>
+</ol>
+<h3 id="43-为什么需要客户端主动关闭">4.3 为什么需要客户端主动关闭</h3>
+<p>服务端在发送 <code>[DONE]</code> 后立即关闭连接是最理想的，但在实际网络环境中，中间可能经过负载均衡器、代理服务器等，它们有可能在转发 <code>[DONE]</code> 后依然保持着连接。</p>
+<p>如果客户端只是被动等待服务端关闭，就可能出现<strong>无限等待</strong>的情况。因此，官方 SDK 和成熟的客户端代码都会在解析到 <code>[DONE]</code> 这个特定字符串后，主动停止读取并关闭连接。</p>
+<h3 id="44-一个完整的交互流程">4.4 一个完整的交互流程</h3>
+<ol>
+<li>客户端发起请求，设置 <code>&quot;stream&quot;: true</code>。</li>
+<li>服务端以 SSE 格式持续推送数据块（<code>data: {...}\n\n</code>）。</li>
+<li>模型生成完毕，服务端发送最后一个数据块：<code>data: [DONE]\n\n</code>。</li>
+<li><strong>服务端</strong>通常会<strong>主动关闭</strong>底层的 TCP 连接。</li>
+<li><strong>客户端</strong>在解析到 <code>[DONE]</code> 后，<strong>也应主动停止读取并关闭连接</strong>——这是一个健壮实现的标准做法。</li>
+</ol>
+<p>总的来说，<code>data: [DONE]</code> 是应用层定义的&quot;结束&quot;信号，收到它意味着<strong>本次请求的数据已经全部传输完毕</strong>。虽然服务端通常会随之关闭连接，但最可靠的做法是客户端在收到此信号后主动关闭自己的那端连接。</p>
+<h2 id="五总结">五、总结</h2>
+<p>把整条链路串起来看：</p>
+<ul>
+<li><strong><code>ChatCompletionCreateParams</code></strong> 是 OpenAI SDK 为开发者提供的一个标准化&quot;契约&quot;，它精确地定义了与 AI 模型交互所需的所有参数，确保了 API 调用的准确性和高效性——在使用任何语言的 OpenAI 官方 SDK 时，你都会频繁地用到它。</li>
+<li><strong><code>/chat/completions</code></strong> 是驱动 OpenAI 聊天模型的核心接口，通过结构化的 <code>messages</code> 数组传入对话历史，并用丰富的参数来控制模型的输出。</li>
+<li><strong>SSE + <code>data: [DONE]</code></strong> 则是流式场景下&quot;如何让回复逐字送达、又如何让连接干净收尾&quot;的答案。</li>
+</ul>
+<p>理解这三层——参数契约、接口规范、流式协议——你就掌握了用代码和 GPT 类模型对话的基本功。想进一步深入，可以参考 OpenAI 的官方文档或 MDN 上关于 SSE 的教程。</p>
+
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/" data-toggle="tooltip" data-placement="top" title="LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+
+
+<link href="https://xxx.xxx.com/dist/Artalk.css" rel="stylesheet" />
+<script src="https://xxx.xxx.com/dist/Artalk.js"></script>
+
+
+<div id="Comments"></div>
+
+<script>
+    Artalk.init({
+        el: '#Comments',
+        pageKey: 'http:\/\/localhost:1313\/post\/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94\/',
+        pageTitle: '深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应',
+        server: 'https:\/\/xxx.xxx.com',
+        site: 'xxx blog',
+    })
+</script>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+                <section>
+                    <hr class="hidden-sm hidden-xs">
+                    <h5><a href="/tags/">FEATURED TAGS</a></h5>
+                    <div class="tags">
+                        
+                        
+                        
+                        <a href="/tags/ai-services" title="ai services">
+                            ai services
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/api" title="api">
+                            api
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/chat-completions" title="chat completions">
+                            chat completions
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/java-ai" title="java ai">
+                            java ai
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/jvm" title="jvm">
+                            jvm
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/langchain4j" title="langchain4j">
+                            langchain4j
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/openai" title="openai">
+                            openai
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/sse" title="sse">
+                            sse
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94" title="流式响应">
+                            流式响应
+                        </a>
+                        
+                        
+                    </div>
+                </section>
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    
+                    <li>
+                        <a href="mailto:2086965923@qq.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/LiBaoxuan-Neil">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Fragments of Logic" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Fragments of Logic 2026
+                    
+                    <br>
+                    
+                    
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow" title="' + t + '">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+</body>
+</html>
