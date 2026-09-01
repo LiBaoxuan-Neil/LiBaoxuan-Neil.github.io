@@ -2,65 +2,65 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>http://localhost:1313/tags/api/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/api/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/categories/</loc>
+    <loc>https://libaoxuan-neil.github.io/categories/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/chat-completions/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/chat-completions/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/</loc>
+    <loc>https://libaoxuan-neil.github.io/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/openai/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/openai/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/post/</loc>
+    <loc>https://libaoxuan-neil.github.io/post/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/sse/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/sse/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/categories/tech/</loc>
+    <loc>https://libaoxuan-neil.github.io/categories/tech/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</loc>
+    <loc>https://libaoxuan-neil.github.io/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</loc>
     <lastmod>2026-08-31T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/ai-services/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/ai-services/</loc>
     <lastmod>2026-07-06T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/java-ai/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/java-ai/</loc>
     <lastmod>2026-07-06T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/langchain4j/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/langchain4j/</loc>
     <lastmod>2026-07-06T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/</loc>
+    <loc>https://libaoxuan-neil.github.io/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/</loc>
     <lastmod>2026-07-06T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/jvm/</loc>
+    <loc>https://libaoxuan-neil.github.io/tags/jvm/</loc>
     <lastmod>2026-02-04T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</loc>
+    <loc>https://libaoxuan-neil.github.io/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</loc>
     <lastmod>2026-02-04T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/about/</loc>
+    <loc>https://libaoxuan-neil.github.io/about/</loc>
   </url><url>
-    <loc>http://localhost:1313/notes/</loc>
+    <loc>https://libaoxuan-neil.github.io/notes/</loc>
   </url><url>
-    <loc>http://localhost:1313/search/placeholder/</loc>
+    <loc>https://libaoxuan-neil.github.io/search/placeholder/</loc>
   </url><url>
-    <loc>http://localhost:1313/archive/</loc>
+    <loc>https://libaoxuan-neil.github.io/archive/</loc>
   </url><url>
-    <loc>http://localhost:1313/search/</loc>
+    <loc>https://libaoxuan-neil.github.io/search/</loc>
   </url>
 </urlset>

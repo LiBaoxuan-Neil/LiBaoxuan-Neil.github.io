@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>JVM on Fragments of Logic</title>
-    <link>http://localhost:1313/tags/jvm/</link>
+    <link>https://libaoxuan-neil.github.io/tags/jvm/</link>
     <description>Recent content in JVM on Fragments of Logic</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <lastBuildDate>Wed, 04 Feb 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://localhost:1313/tags/jvm/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://libaoxuan-neil.github.io/tags/jvm/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>JVM 基础原理 01：一文吃透 JVM 整体架构</title>
-      <link>http://localhost:1313/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</link>
+      <link>https://libaoxuan-neil.github.io/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</link>
       <pubDate>Wed, 04 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</guid>
+      <guid>https://libaoxuan-neil.github.io/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</guid>
       <description>&lt;p&gt;作为Java开发者，我们每天都在与JVM打交道，但真正能说清其核心架构和底层逻辑的人却不多。无论是日常开发中的性能优化、内存泄漏排查，JVM都是绕不开的核心。今天，我将以架构师的视角，带大家重新认识JVM，拆解其核心规范，帮大家从“会用”升级到“懂原理”。&lt;/p&gt;</description>
     </item>
   </channel>

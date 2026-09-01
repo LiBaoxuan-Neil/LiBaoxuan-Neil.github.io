@@ -2,73 +2,73 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Tags on Fragments of Logic</title>
-    <link>http://localhost:1313/tags/</link>
+    <link>https://libaoxuan-neil.github.io/tags/</link>
     <description>Recent content in Tags on Fragments of Logic</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 31 Aug 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://localhost:1313/tags/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://libaoxuan-neil.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>API</title>
-      <link>http://localhost:1313/tags/api/</link>
+      <link>https://libaoxuan-neil.github.io/tags/api/</link>
       <pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/api/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/api/</guid>
       <description></description>
     </item>
     <item>
       <title>Chat Completions</title>
-      <link>http://localhost:1313/tags/chat-completions/</link>
+      <link>https://libaoxuan-neil.github.io/tags/chat-completions/</link>
       <pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/chat-completions/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/chat-completions/</guid>
       <description></description>
     </item>
     <item>
       <title>OpenAI</title>
-      <link>http://localhost:1313/tags/openai/</link>
+      <link>https://libaoxuan-neil.github.io/tags/openai/</link>
       <pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/openai/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/openai/</guid>
       <description></description>
     </item>
     <item>
       <title>SSE</title>
-      <link>http://localhost:1313/tags/sse/</link>
+      <link>https://libaoxuan-neil.github.io/tags/sse/</link>
       <pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/sse/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/sse/</guid>
       <description></description>
     </item>
     <item>
       <title>流式响应</title>
-      <link>http://localhost:1313/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</link>
+      <link>https://libaoxuan-neil.github.io/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</link>
       <pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</guid>
       <description></description>
     </item>
     <item>
       <title>AI Services</title>
-      <link>http://localhost:1313/tags/ai-services/</link>
+      <link>https://libaoxuan-neil.github.io/tags/ai-services/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/ai-services/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/ai-services/</guid>
       <description></description>
     </item>
     <item>
       <title>Java AI</title>
-      <link>http://localhost:1313/tags/java-ai/</link>
+      <link>https://libaoxuan-neil.github.io/tags/java-ai/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/java-ai/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/java-ai/</guid>
       <description></description>
     </item>
     <item>
       <title>LangChain4j</title>
-      <link>http://localhost:1313/tags/langchain4j/</link>
+      <link>https://libaoxuan-neil.github.io/tags/langchain4j/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/langchain4j/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/langchain4j/</guid>
       <description></description>
     </item>
     <item>
       <title>JVM</title>
-      <link>http://localhost:1313/tags/jvm/</link>
+      <link>https://libaoxuan-neil.github.io/tags/jvm/</link>
       <pubDate>Wed, 04 Feb 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/tags/jvm/</guid>
+      <guid>https://libaoxuan-neil.github.io/tags/jvm/</guid>
       <description></description>
     </item>
   </channel>
