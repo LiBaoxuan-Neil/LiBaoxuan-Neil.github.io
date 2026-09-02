@@ -1,725 +1,118 @@
-<!DOCTYPE html>
-<html lang="en-us">
-<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    
-    <meta property="og:site_name" content="Fragments of Logic">
-    <meta property="og:type" content="article">
-
-    
-    <meta property="og:image" content="http://localhost:1313//img/downloaded-image.png">
-    <meta property="twitter:image" content="http://localhost:1313//img/downloaded-image.png" />
-    
-
-    
-    <meta name="title" content="LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口" />
-    <meta property="og:title" content="LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口" />
-    <meta property="twitter:title" content="LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口" />
-    
-
-    
-    <meta name="description" content="从 Java 后端开发者视角理解 LangChain4j AI Services：声明式 API、Chat Memory、Tools 与企业问答服务的工程化组装方式。">
-    <meta property="og:description" content="从 Java 后端开发者视角理解 LangChain4j AI Services：声明式 API、Chat Memory、Tools 与企业问答服务的工程化组装方式。" />
-    <meta property="twitter:description" content="从 Java 后端开发者视角理解 LangChain4j AI Services：声明式 API、Chat Memory、Tools 与企业问答服务的工程化组装方式。" />
-    
-
-    <meta property="og:url" content="http://localhost:1313/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/" />
-
-    
-    <meta property="twitter:card" content="summary" />
-    
-    
-
-    <meta name="keyword"  content="">
-    <link rel="shortcut icon" href="/img/favicon.ico">
-
-    <title>LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口 | Where Code Meets Contemplation</title>
-
-    <link rel="canonical" href="/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/">
-
-    
-
-    
-    <link rel="stylesheet" href="/css/bootstrap.min.css">
-
-    
-    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
-
-    
-    <link rel="stylesheet" href="/css/zanshang.min.css">
-
-    
-    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
-
-    
-    
-    
-    
-
-    
-    <script src="/js/jquery.min.js"></script>
-
-    
-    <script src="/js/bootstrap.min.js"></script>
-
-    
-    <script src="/js/hux-blog.min.js"></script>
-
-    
-    <script src="/js/lazysizes.min.js"></script>
-
-    
-    
-
-</head>
-
-
-
-
-
-<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
-
-    <div class="container-fluid">
-        
-        <div class="navbar-header page-scroll">
-            <button type="button" class="navbar-toggle">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-            </button>
-            <a class="navbar-brand" href="/">Fragments of Logic</a>
-        </div>
-
-        
-        
-        <div id="huxblog_navbar">
-            <div class="navbar-collapse">
-                <ul class="nav navbar-nav navbar-right">
-                    <li>
-                        <a href="/">All Posts</a>
-                    </li>
-                    
-                    
-		    
-                        <li><a href="/archive//">ARCHIVE</a></li>
-                    
-                        <li><a href="/about//">ABOUT</a></li>
-                    
-		            <li>
-                        <a href="/search"><i class="fa fa-search"></i></a>
-		           </li>
-                </ul>
-            </div>
-        </div>
-        
-    </div>
-    
-</nav>
-<script>
-    
-    
-    
-    var $body   = document.body;
-    var $toggle = document.querySelector('.navbar-toggle');
-    var $navbar = document.querySelector('#huxblog_navbar');
-    var $collapse = document.querySelector('.navbar-collapse');
-
-    $toggle.addEventListener('click', handleMagic)
-    function handleMagic(e){
-        if ($navbar.className.indexOf('in') > 0) {
-        
-            $navbar.className = " ";
-            
-            setTimeout(function(){
-                
-                if($navbar.className.indexOf('in') < 0) {
-                    $collapse.style.height = "0px"
-                }
-            },400)
-        }else{
-        
-            $collapse.style.height = "auto"
-            $navbar.className += " in";
-        }
-    }
-</script>
-
-
-
-
-<style type="text/css">
-    header.intro-header {
-        background-image: url('/img/downloaded-image.png')
-    }
-</style>
-
-<header class="intro-header" >
-
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
-                <div class="post-heading">
-                    <div class="tags">
-                        
-                        <a class="tag" href="/tags/langchain4j" title="LangChain4j">
-                            LangChain4j
-                        </a>
-                        
-                        <a class="tag" href="/tags/java-ai" title="Java AI">
-                            Java AI
-                        </a>
-                        
-                        <a class="tag" href="/tags/ai-services" title="AI Services">
-                            AI Services
-                        </a>
-                        
-                    </div>
-                    <h1>LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口</h1>
-                    <h2 class="subheading"></h2>
-                    <span class="meta">
-                        
-                            Posted by 
-                            
-                                LiBaoxuan
-                             
-                            on 
-                            Monday, July 6, 2026
-                            
-                            
-                            
-                            
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
-</header>
-
-
-
-
-<article>
-    <div class="container">
-        <div class="row">
-
-            
-            <div class="
-                col-lg-8 col-lg-offset-2
-                col-md-10 col-md-offset-1
-                post-container">
-
-                
-                <p>作为 Java 后端开发者，我们过去接入外部能力时，习惯把它封装成 SDK、Client、Repository 或 Service。但大模型进入业务系统后，问题会变得更复杂：它不只是一次 HTTP 调用，还涉及 Prompt、上下文、工具调用、知识检索、结构化输出和调用治理。</p>
-<p>这篇文章聚焦 LangChain4j 的 AI Services 编程模型，尝试回答一个问题：如何用 Java 开发者熟悉的接口方式，把大模型能力封装成可维护的业务服务？</p>
-<h2 id="一为什么-java-后端需要-ai-services">一、为什么 Java 后端需要 AI Services</h2>
-<p>如果只是做一个 Demo，我们当然可以直接调用模型厂商的 HTTP API：拼一段 Prompt，发送请求，拿到文本结果，然后展示给用户。但企业级 Java 应用很少停留在这个阶段。</p>
-<p>一旦大模型能力进入 CRM、ERP、交付运营、采购审批或知识库问答系统，它就会遇到传统业务系统同样关心的问题：</p>
-<ul>
-<li>模型调用如何从业务代码中解耦？</li>
-<li>多轮对话的上下文如何管理？</li>
-<li>企业知识库如何参与回答？</li>
-<li>模型如何安全地调用内部系统能力？</li>
-<li>返回结果如何被业务层稳定消费？</li>
-</ul>
-<p>这也是 LangChain4j AI Services 的价值所在。它不是只帮我们“请求一次大模型”，而是把模型、记忆、检索和工具调用这些能力组合起来，再通过一个 Java 接口暴露给业务代码。</p>
-<p>换句话说，AI Services 解决的是工程边界问题：让业务系统调用 AI 能力时，不必到处拼 Prompt、解析响应、维护上下文，而是像调用一个普通 Java Service 一样调用大模型能力。</p>
-<h2 id="二langchain4j-的两个抽象层次">二、LangChain4j 的两个抽象层次</h2>
-<p>从课程材料的视角看，LangChain4j 大致运行在两个抽象层次上。</p>
-<p>第一层是低层次抽象。开发者可以直接使用 <code>ChatLanguageModel</code>、<code>UserMessage</code>、<code>AiMessage</code>、<code>EmbeddingStore</code>、<code>Embedding</code> 等组件。这一层更接近 LangChain4j 的“原语”：控制力强，适合对调用过程做精细编排，但也意味着需要写更多胶水代码。</p>
-<p>第二层是高层次抽象。开发者使用 AI Services 这类高级 API，把模型调用封装成声明式接口。框架隐藏了大量样板代码，同时仍然允许我们配置模型、记忆、检索器和工具调用。</p>
-<p>如果说低层次 API 更像直接操作零件，那么 AI Services 更像把零件装配成一个可复用的业务模块。对大多数 Java 后端团队来说，后者更接近日常开发习惯：先定义接口，再由框架负责运行时实现。</p>
-<h2 id="三ai-services像-feign--spring-data-jpa-一样调用大模型">三、AI Services：像 Feign / Spring Data JPA 一样调用大模型</h2>
-<p>课程里有一个很贴切的类比：Spring AI 的 <code>ChatClient</code> 更像 <code>WebClient</code>，走的是流式、链式的 Fluent API 风格；而 LangChain4j 的 <code>AiServices</code> 更像 Spring Data JPA 或 Feign，走的是声明式 API 风格。</p>
-<p>这个差异非常关键。</p>
-<p>使用 Fluent API 时，我们通常在代码中显式描述一次调用过程：设置系统提示词、拼接用户输入、配置参数、发起调用、解析结果。它直观、灵活，也适合需要临时编排的场景。</p>
-<p>而声明式 API 的关注点不同。我们先定义一个 Java interface，用方法签名表达“我希望 AI 提供什么能力”，再通过注解、参数和构建器告诉框架如何完成模型调用。业务代码最终面对的是接口，而不是零散的 Prompt 组装逻辑。</p>
-<p>这带来的好处是：AI 能力可以被纳入 Java 项目熟悉的分层结构中。Controller 调用 Service，Service 调用 AI Service；AI Service 背后再组合 ChatModel、Chat Memory、Retriever 和 Tools。这样一来，大模型能力就不再是散落在业务代码里的 API 调用，而成为一个有边界、有职责、可替换的工程组件。</p>
-<h2 id="四一个-ai-service-由哪些部分组成">四、一个 AI Service 由哪些部分组成</h2>
-<p>先看课程中的简化示例：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span>Assistant assistant <span style="color:#ff79c6">=</span> AiServices.<span style="color:#50fa7b">builder</span>(Assistant.<span style="color:#50fa7b">class</span>)
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">chatModel</span>(CHAT_MODEL)
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">chatMemory</span>(MessageWindowChatMemory.<span style="color:#50fa7b">withMaxMessages</span>(10))
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">contentRetriever</span>(createContentRetriever(documents))
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">build</span>();
-</span></span></code></pre></div><p>这段代码可以拆成四个核心角色。</p>
-<p><code>Assistant</code> 是 AI Service 接口。它定义业务侧如何调用这项 AI 能力，例如“提问”“总结”“生成方案”或“处理运营请求”。接口本身像普通 Java Service，但运行时由 LangChain4j 生成实现。</p>
-<p><code>chatModel</code> 是模型接入层。它负责连接底层大模型，把消息发送给模型，并接收模型响应。对业务代码来说，模型供应商、请求参数、超时重试等细节应尽量收敛在这一层。</p>
-<p><code>chatMemory</code> 或 <code>chatMemoryProvider</code> 负责对话记忆。因为 LLM 本身是无状态的，每一次调用都不会天然记得上一轮说了什么。Chat Memory 的职责就是在调用模型前，把必要的历史消息重新放回上下文。</p>
-<p><code>contentRetriever</code> 负责检索增强。企业问答场景中，模型不能只依赖通用知识，还需要结合制度、SLA、采购规则、交付规范等内部文档。Retriever 会根据用户问题检索相关内容，再把结果提供给模型生成回答。</p>
-<p>因此，<code>AiServices.builder()</code> 的意义不是简单创建对象，而是把模型、记忆、知识检索等能力组装成一个可被业务层调用的 AI 服务。</p>
-<h2 id="五chat-memory让无状态模型具备上下文">五、Chat Memory：让无状态模型具备上下文</h2>
-<p>在 LLM 应用里，“记忆”并不是模型真的把会话永久记在自己脑子里。更准确地说，应用在每次请求时选择一部分历史消息，连同当前问题一起发送给模型。Chat Memory 管理的就是这部分历史上下文。</p>
-<p>课程中把 Chat Memory 分成三类思路。</p>
-<p>第一类是窗口记忆，也就是 Sliding Window Memory。它按照消息数量保留最近 N 条对话。比如 <code>MessageWindowChatMemory.withMaxMessages(10)</code> 表示只保留最近 10 条消息。这种方式简单直接，适合 Demo、轻量客服、多轮问答等场景。</p>
-<p>第二类是 Token 记忆，也就是 Token-based Memory。它不按消息条数裁剪，而是按 token 预算控制上下文长度。这样更贴近模型真实成本和上下文窗口限制，适合对成本、延迟和上下文长度更敏感的生产系统。</p>
-<p>第三类是持久化记忆，也就是 Persistent Memory。它把会话历史保存到文件、数据库或外部存储中，让不同请求、不同服务实例之间可以共享或恢复上下文。企业系统通常还会在这一层考虑用户隔离、审计、数据清理和权限控制。</p>
-<p>配套项目里的 <code>EnterpriseChatMemoryProvider</code> 就体现了这种工程化选择：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span>@Override
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">public</span> ChatMemory <span style="color:#50fa7b">get</span>(Object memoryId) {
-</span></span><span style="display:flex;"><span>    String id <span style="color:#ff79c6">=</span> String.<span style="color:#50fa7b">valueOf</span>(memoryId);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (id.<span style="color:#50fa7b">startsWith</span>(<span style="color:#f1fa8c">&#34;token-&#34;</span>) <span style="color:#ff79c6">||</span> id.<span style="color:#50fa7b">contains</span>(<span style="color:#f1fa8c">&#34;crm&#34;</span>)) {
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> TokenWindowChatMemory.<span style="color:#50fa7b">builder</span>()
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">id</span>(id)
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">maxTokens</span>(900, tokenCountEstimator)
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">chatMemoryStore</span>(memoryStore)
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">alwaysKeepSystemMessageFirst</span>(<span style="color:#ff79c6">true</span>)
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">build</span>();
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (id.<span style="color:#50fa7b">startsWith</span>(<span style="color:#f1fa8c">&#34;persist-&#34;</span>) <span style="color:#ff79c6">||</span> id.<span style="color:#50fa7b">contains</span>(<span style="color:#f1fa8c">&#34;ops&#34;</span>)) {
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> MessageWindowChatMemory.<span style="color:#50fa7b">builder</span>()
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">id</span>(id)
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">maxMessages</span>(24)
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">chatMemoryStore</span>(memoryStore)
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">alwaysKeepSystemMessageFirst</span>(<span style="color:#ff79c6">true</span>)
-</span></span><span style="display:flex;"><span>                .<span style="color:#50fa7b">build</span>();
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> MessageWindowChatMemory.<span style="color:#50fa7b">builder</span>()
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">id</span>(id)
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">maxMessages</span>(10)
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">alwaysKeepSystemMessageFirst</span>(<span style="color:#ff79c6">true</span>)
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">build</span>();
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p>这里不是用一个固定策略解决所有问题，而是根据会话标识选择不同记忆策略：CRM 场景偏 token 控制，运营场景偏持久化，普通场景则使用较轻量的窗口记忆。</p>
-<p>这也给我们一个实践建议：生产系统里的 Chat Memory 往往不是“开或不开”的问题，而是如何组合短期窗口、token 裁剪和持久化存储，让上下文既够用，又不会失控。</p>
-<h2 id="六tools让模型从聊天走向执行">六、Tools：让模型从聊天走向执行</h2>
-<p>如果没有工具调用，大模型更多是在“回答问题”：用户输入一段话，模型生成一段话。但企业应用通常不满足于聊天本身，它还希望 AI 能够查询客户信息、创建工单、检查库存、路由审批，甚至触发一段业务流程。</p>
-<p>这就是 Tools 的价值。Tools 让模型可以在需要时调用外部 API、数据库查询或本地 Java 方法。对 Java 开发者来说，LangChain4j 的 <code>@Tool</code> 注解把这件事包装得很自然：我们把一个普通方法声明为工具，再用参数注解描述它需要什么输入。</p>
-<p>配套项目中的 <code>EnterpriseOperationTools</code> 就是典型例子：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span>@Tool(name <span style="color:#ff79c6">=</span> <span style="color:#f1fa8c">&#34;lookupCustomer&#34;</span>, value <span style="color:#ff79c6">=</span> <span style="color:#f1fa8c">&#34;查询客户画像、合同等级、健康度和客户成功负责人&#34;</span>)
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">public</span> CustomerSnapshot <span style="color:#50fa7b">lookupCustomer</span>(@P(<span style="color:#f1fa8c">&#34;客户编号，例如 C-1001&#34;</span>) String customerId) {
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> dataService.<span style="color:#50fa7b">customer</span>(customerId);
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>@Tool(name <span style="color:#ff79c6">=</span> <span style="color:#f1fa8c">&#34;createSupportTicket&#34;</span>, value <span style="color:#ff79c6">=</span> <span style="color:#f1fa8c">&#34;为企业客户创建售后或交付工单，并按优先级分派团队&#34;</span>)
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">public</span> Ticket <span style="color:#50fa7b">createSupportTicket</span>(
-</span></span><span style="display:flex;"><span>        @ToolMemoryId String memoryId,
-</span></span><span style="display:flex;"><span>        @P(<span style="color:#f1fa8c">&#34;客户编号&#34;</span>) String customerId,
-</span></span><span style="display:flex;"><span>        @P(<span style="color:#f1fa8c">&#34;工单标题&#34;</span>) String title,
-</span></span><span style="display:flex;"><span>        @P(<span style="color:#f1fa8c">&#34;问题描述&#34;</span>) String description,
-</span></span><span style="display:flex;"><span>        @P(<span style="color:#f1fa8c">&#34;优先级：LOW/MEDIUM/HIGH/CRITICAL&#34;</span>) String priority,
-</span></span><span style="display:flex;"><span>        @P(<span style="color:#f1fa8c">&#34;负责团队&#34;</span>) String ownerTeam
-</span></span><span style="display:flex;"><span>) {
-</span></span><span style="display:flex;"><span>    Priority parsedPriority <span style="color:#ff79c6">=</span> Priority.<span style="color:#50fa7b">valueOf</span>(priority.<span style="color:#50fa7b">toUpperCase</span>(Locale.<span style="color:#50fa7b">ROOT</span>));
-</span></span><span style="display:flex;"><span>    String enrichedDescription <span style="color:#ff79c6">=</span> description <span style="color:#ff79c6">+</span> <span style="color:#f1fa8c">&#34;；来源会话=&#34;</span> <span style="color:#ff79c6">+</span> memoryId;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> dataService.<span style="color:#50fa7b">createTicket</span>(customerId, title, enrichedDescription, parsedPriority, ownerTeam);
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p>这段代码背后的工程意义很重要：模型并不是随意操作系统，而是在我们暴露的工具边界内行动。工具名称、说明、参数类型和返回值共同构成了模型可调用能力的契约。</p>
-<p>配套项目里的 <code>OperationCopilot</code> 则把这些工具挂到一个 AI Service 上：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#ff79c6">return</span> AiServices.<span style="color:#50fa7b">builder</span>(OperationCopilot.<span style="color:#50fa7b">class</span>)
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">chatModel</span>(chatModel)
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">chatMemoryProvider</span>(memoryProvider)
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">contentRetriever</span>(retriever)
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">tools</span>(tools)
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">maxSequentialToolsInvocations</span>(3)
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">afterToolExecution</span>(execution <span style="color:#ff79c6">-&gt;</span> System.<span style="color:#50fa7b">out</span>.<span style="color:#50fa7b">println</span>(<span style="color:#f1fa8c">&#34;AI Tool executed: &#34;</span> <span style="color:#ff79c6">+</span> execution.<span style="color:#50fa7b">request</span>().<span style="color:#50fa7b">name</span>()))
-</span></span><span style="display:flex;"><span>        .<span style="color:#50fa7b">build</span>();
-</span></span></code></pre></div><p>这样一来，用户可以用自然语言提出运营请求，而 AI Service 可以在模型判断后调用工具完成动作。比如查询客户画像、检查库存、创建支持工单或路由采购审批。</p>
-<p>当然，Tools 也意味着更高的工程责任。真正进入生产环境时，我们需要考虑权限校验、参数验证、幂等控制、审计日志和人工确认机制。模型可以决定“调用哪个工具”，但业务系统必须决定“哪些工具可以被调用，以及调用后如何受控落地”。</p>
-<h2 id="七企业问答-ai-service-示例">七、企业问答 AI Service 示例</h2>
-<p>最后，我们用配套项目中的企业知识库助手，把前面的概念串起来。</p>
-<p>先看 AI Service 接口：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">public</span> <span style="color:#8be9fd;font-style:italic">interface</span> <span style="color:#50fa7b">EnterpriseKnowledgeAssistant</span> {
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    @SystemMessage(<span style="color:#f1fa8c">&#34;&#34;&#34;
-</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">            你是企业运营智能中台的知识库助手。
-</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">            回答必须结合检索到的企业制度、SLA、采购、交付、CRM 或安全规范。
-</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">            如果资料不足，请明确说明不确定，并给出下一步应找哪个部门确认。
-</span></span></span><span style="display:flex;"><span><span style="color:#f1fa8c">            &#34;&#34;&#34;</span>)
-</span></span><span style="display:flex;"><span>    String <span style="color:#50fa7b">ask</span>(@MemoryId String conversationId, @UserMessage String question);
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p>这个接口里有几个关键信息。</p>
-<p><code>@SystemMessage</code> 定义了助手的角色和回答边界：它不是泛泛聊天助手，而是企业运营智能中台的知识库助手。<code>@MemoryId</code> 标识当前会话，让 Chat Memory 可以按会话隔离上下文。<code>@UserMessage</code> 则标识用户当前输入的问题。</p>
-<p>再看 Spring 配置中的组装方式：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span>@Bean
-</span></span><span style="display:flex;"><span>EnterpriseKnowledgeAssistant <span style="color:#50fa7b">enterpriseKnowledgeAssistant</span>(ChatModel chatModel,
-</span></span><span style="display:flex;"><span>                                                          EnterpriseChatMemoryProvider memoryProvider,
-</span></span><span style="display:flex;"><span>                                                          EnterpriseKnowledgeRetriever retriever) {
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> AiServices.<span style="color:#50fa7b">builder</span>(EnterpriseKnowledgeAssistant.<span style="color:#50fa7b">class</span>)
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">chatModel</span>(chatModel)
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">chatMemoryProvider</span>(memoryProvider)
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">contentRetriever</span>(retriever)
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">storeRetrievedContentInChatMemory</span>(<span style="color:#ff79c6">true</span>)
-</span></span><span style="display:flex;"><span>            .<span style="color:#50fa7b">build</span>();
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p>这段代码把一个企业问答服务拆成了清晰的组件：</p>
-<ul>
-<li><code>EnterpriseKnowledgeAssistant</code>：业务侧调用的 AI Service 接口。</li>
-<li><code>ChatModel</code>：底层模型能力。</li>
-<li><code>EnterpriseChatMemoryProvider</code>：按会话提供记忆策略。</li>
-<li><code>EnterpriseKnowledgeRetriever</code>：从企业知识库检索相关制度和规范。</li>
-<li><code>storeRetrievedContentInChatMemory(true)</code>：把检索到的内容也纳入会话记忆，便于后续对话延续上下文。</li>
-</ul>
-<p>完整链路可以理解为：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>用户问题
-</span></span><span style="display:flex;"><span>  -&gt; EnterpriseKnowledgeAssistant.ask(...)
-</span></span><span style="display:flex;"><span>  -&gt; 根据 conversationId 取得 Chat Memory
-</span></span><span style="display:flex;"><span>  -&gt; EnterpriseKnowledgeRetriever 检索企业知识
-</span></span><span style="display:flex;"><span>  -&gt; ChatModel 结合系统提示词、历史上下文和检索内容生成回答
-</span></span><span style="display:flex;"><span>  -&gt; 返回业务层
-</span></span></code></pre></div><p>这里最值得注意的是边界设计。企业问答不是把用户问题直接丢给模型，而是让问题经过 AI Service 接口、记忆管理、知识检索和模型调用之后，再以业务服务的形式返回结果。这样做的好处是职责清晰：业务层不关心 Prompt 如何拼接，模型层不关心 Controller 如何暴露接口，检索层也可以独立演进。</p>
-<h2 id="八小结">八、小结</h2>
-<p>回到开头的问题：Java 后端为什么需要 LangChain4j AI Services？</p>
-<p>我的理解是，它把大模型调用从“外部 API 请求”推进到了“接口驱动的业务能力”。这对企业应用非常关键。因为业务系统真正需要的不是一次孤立的模型回答，而是一个可以被 Controller、Service、Workflow 稳定调用的 AI 能力边界。</p>
-<p>这篇文章重点拆了三个核心点：</p>
-<ul>
-<li>AI Services 用声明式接口封装模型调用，让业务代码面对 Java interface，而不是散落的 Prompt 逻辑。</li>
-<li>Chat Memory 解决上下文管理问题，让无状态模型在应用层获得多轮对话能力。</li>
-<li>Tools 和 Retriever 让模型能够连接业务系统和企业知识库，从“会回答”进一步走向“能执行、能结合内部知识回答”。</li>
-</ul>
-<p>对 Java 团队来说，LangChain4j 的吸引力就在这里：它没有要求我们完全跳出原有工程体系，而是把 AI 能力放回熟悉的 interface、annotation、Bean 和 Service 结构中。只要边界设计得当，大模型就可以成为企业系统中的一个可治理组件，而不是一段难以维护的调用脚本。</p>
-<p>后续如果继续深入，可以沿着两个方向学习：一是结构化输出，把模型结果稳定映射为 Java DTO；二是更完整的 RAG 与 Agent 编排，把知识检索、工具调用、评估和治理串成生产级闭环。</p>
-<h2 id="延伸阅读">延伸阅读</h2>
-<ul>
-<li>LangChain4j 官方文档：https://docs.langchain4j.info/</li>
-<li>LangChain4j GitHub 仓库：https://github.com/langchain4j/langchain4j</li>
-</ul>
-
-
-                
-
-                
-                <hr>
-                <ul class="pager">
-                    
-                    <li class="previous">
-                        <a href="/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/" data-toggle="tooltip" data-placement="top" title="JVM 基础原理 01：一文吃透 JVM 整体架构">&larr;
-                            Previous Post</a>
-                    </li>
-                    
-                    
-                    <li class="next">
-                        <a href="/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/" data-toggle="tooltip" data-placement="top" title="深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应">Next
-                            Post &rarr;</a>
-                    </li>
-                    
-                </ul>
-                
-
-                
-
-
-
-
-<link href="https://xxx.xxx.com/dist/Artalk.css" rel="stylesheet" />
-<script src="https://xxx.xxx.com/dist/Artalk.js"></script>
-
-
-<div id="Comments"></div>
-
-<script>
-    Artalk.init({
-        el: '#Comments',
-        pageKey: 'http:\/\/localhost:1313\/post\/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3\/',
-        pageTitle: 'LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口',
-        server: 'https:\/\/xxx.xxx.com',
-        site: 'xxx blog',
-    })
-</script>
-
-
-            </div>
-
-            
-            
-            <div class="
-                col-lg-2 col-lg-offset-0
-                visible-lg-block
-                sidebar-container
-                catalog-container">
-                <div class="side-catalog">
-                    <hr class="hidden-sm hidden-xs">
-                    <h5>
-                        <a class="catalog-toggle" href="#">CATALOG</a>
-                    </h5>
-                    <ul class="catalog-body"></ul>
-                </div>
-            </div>
-            
-
-            
-            <div class="
-                col-lg-8 col-lg-offset-2
-                col-md-10 col-md-offset-1
-                sidebar-container">
-
-                
-                
-                <section>
-                    <hr class="hidden-sm hidden-xs">
-                    <h5><a href="/tags/">FEATURED TAGS</a></h5>
-                    <div class="tags">
-                        
-                        
-                        
-                        <a href="/tags/ai-services" title="ai services">
-                            ai services
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/api" title="api">
-                            api
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/chat-completions" title="chat completions">
-                            chat completions
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/java-ai" title="java ai">
-                            java ai
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/jvm" title="jvm">
-                            jvm
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/kubernetes" title="kubernetes">
-                            kubernetes
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/langchain4j" title="langchain4j">
-                            langchain4j
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/openai" title="openai">
-                            openai
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/pod" title="pod">
-                            pod
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/sse" title="sse">
-                            sse
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
-                            云原生
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94" title="流式响应">
-                            流式响应
-                        </a>
-                        
-                        
-                        
-                        <a href="/tags/%E8%B0%83%E5%BA%A6" title="调度">
-                            调度
-                        </a>
-                        
-                        
-                    </div>
-                </section>
-                
-
-                
-                
-            </div>
-        </div>
-    </div>
-</article>
-
-
-
-
-<footer>
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
-                <ul class="list-inline text-center">
-                    
-                    <li>
-                        <a href="mailto:2086965923@qq.com">
-                            <span class="fa-stack fa-lg">
-                                <i class="fas fa-circle fa-stack-2x"></i>
-                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
-                            </span>
-                        </a>
-                    </li>
-		           
-                    
-                    
-                    
-                    
-
-		            
-                    
-                    
-                    <li>
-                        <a target="_blank" href="https://github.com/LiBaoxuan-Neil">
-                            <span class="fa-stack fa-lg">
-                                <i class="fas fa-circle fa-stack-2x"></i>
-                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
-                            </span>
-                        </a>
-                    </li>
-		            
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-            
-            
-            
-           
-                   <li>
-                       <a href='' rel="alternate" type="application/rss+xml" title="Fragments of Logic" >
-                           <span class="fa-stack fa-lg">
-                               <i class="fas fa-circle fa-stack-2x"></i>
-                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
-                           </span>
-                       </a>
-                   </li>
-            
-             </ul>
-		<p class="copyright text-muted">
-                    Copyright &copy; Fragments of Logic 2026
-                    
-                    <br>
-                    
-                    
-                </p>
-            </div>
-        </div>
-    </div>
-</footer>
-
-
-
-
-<script>
-    function loadAsync(u, c) {
-      var d = document, t = 'script',
-          o = d.createElement(t),
-          s = d.getElementsByTagName(t)[0];
-      o.src = u;
-      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
-      s.parentNode.insertBefore(o, s);
-    }
-</script>
-
-
-
-
-
-
-<script>
-    
-    if($('#tag_cloud').length !== 0){
-        loadAsync("/js/jquery.tagcloud.js",function(){
-            $.fn.tagcloud.defaults = {
-                
-                color: {start: '#bbbbee', end: '#0085a1'},
-            };
-            $('#tag_cloud a').tagcloud();
-        })
-    }
-</script>
-
-
-<script>
-    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
-        var $nav = document.querySelector("nav");
-        if($nav) FastClick.attach($nav);
-    })
-</script>
-
-
-
-
-
-
-<script type="text/javascript">
-    function generateCatalog(selector) {
-
-        
-        
-        
-        
-            _containerSelector = 'div.post-container'
-        
-
-        
-        var P = $(_containerSelector), a, n, t, l, i, c;
-        a = P.find('h1,h2,h3,h4,h5,h6');
-
-        
-        $(selector).html('')
-
-        
-        a.each(function () {
-            n = $(this).prop('tagName').toLowerCase();
-            i = "#" + $(this).prop('id');
-            t = $(this).text();
-            c = $('<a href="' + i + '" rel="nofollow" title="' + t + '">' + t + '</a>');
-            l = $('<li class="' + n + '_nav"></li>').append(c);
-            $(selector).append(l);
-        });
-        return true;
-    }
-
-    generateCatalog(".catalog-body");
-
-    
-    $(".catalog-toggle").click((function (e) {
-        e.preventDefault();
-        $('.side-catalog').toggleClass("fold")
-    }))
-
-    
-
-
-    loadAsync("\/js\/jquery.nav.js", function () {
-        $('.catalog-body').onePageNav({
-            currentClass: "active",
-            changeHash: !1,
-            easing: "swing",
-            filter: "",
-            scrollSpeed: 700,
-            scrollOffset: 0,
-            scrollThreshold: .2,
-            begin: null,
-            end: null,
-            scrollChange: null,
-            padding: 80
-        });
-    });
-</script>
-
-
-
-
-
-
-
-</body>
-</html>
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Fragments of Logic"><meta property="og:type" content="article"><meta property="og:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png"><meta property="twitter:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png"><meta name=title content="LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口"><meta property="og:title" content="LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口"><meta property="twitter:title" content="LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口"><meta name=description content="从 Java 后端开发者视角理解 LangChain4j AI Services：声明式 API、Chat Memory、Tools 与企业问答服务的工程化组装方式。"><meta property="og:description" content="从 Java 后端开发者视角理解 LangChain4j AI Services：声明式 API、Chat Memory、Tools 与企业问答服务的工程化组装方式。"><meta property="twitter:description" content="从 Java 后端开发者视角理解 LangChain4j AI Services：声明式 API、Chat Memory、Tools 与企业问答服务的工程化组装方式。"><meta property="og:url" content="https://libaoxuan-neil.github.io/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/"><meta property="twitter:card" content="summary"><meta name=keyword content><link rel="shortcut icon" href=/img/favicon.ico><title>LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口 | Where Code Meets Contemplation</title><link rel=canonical href=/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.min.css><link rel=stylesheet href=/css/font-awesome.all.min.css><script src=/js/jquery.min.js></script><script src=/js/bootstrap.min.js></script><script src=/js/hux-blog.min.js></script><script src=/js/lazysizes.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+</button>
+<a class=navbar-brand href=/>Fragments of Logic</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/archive//>ARCHIVE</a></li><li><a href=/about//>ABOUT</a></li><li><a href=/search><i class="fa fa-search"></i></a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/downloaded-image.png)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags><a class=tag href=/tags/langchain4j title=LangChain4j>LangChain4j
+</a><a class=tag href=/tags/java-ai title="Java AI">Java AI
+</a><a class=tag href=/tags/ai-services title="AI Services">AI Services</a></div><h1>LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口</h1><h2 class=subheading></h2><span class=meta>Posted by
+LiBaoxuan
+on
+Monday, July 6, 2026</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+post-container"><p>作为 Java 后端开发者，我们过去接入外部能力时，习惯把它封装成 SDK、Client、Repository 或 Service。但大模型进入业务系统后，问题会变得更复杂：它不只是一次 HTTP 调用，还涉及 Prompt、上下文、工具调用、知识检索、结构化输出和调用治理。</p><p>这篇文章聚焦 LangChain4j 的 AI Services 编程模型，尝试回答一个问题：如何用 Java 开发者熟悉的接口方式，把大模型能力封装成可维护的业务服务？</p><h2 id=一为什么-java-后端需要-ai-services>一、为什么 Java 后端需要 AI Services</h2><p>如果只是做一个 Demo，我们当然可以直接调用模型厂商的 HTTP API：拼一段 Prompt，发送请求，拿到文本结果，然后展示给用户。但企业级 Java 应用很少停留在这个阶段。</p><p>一旦大模型能力进入 CRM、ERP、交付运营、采购审批或知识库问答系统，它就会遇到传统业务系统同样关心的问题：</p><ul><li>模型调用如何从业务代码中解耦？</li><li>多轮对话的上下文如何管理？</li><li>企业知识库如何参与回答？</li><li>模型如何安全地调用内部系统能力？</li><li>返回结果如何被业务层稳定消费？</li></ul><p>这也是 LangChain4j AI Services 的价值所在。它不是只帮我们“请求一次大模型”，而是把模型、记忆、检索和工具调用这些能力组合起来，再通过一个 Java 接口暴露给业务代码。</p><p>换句话说，AI Services 解决的是工程边界问题：让业务系统调用 AI 能力时，不必到处拼 Prompt、解析响应、维护上下文，而是像调用一个普通 Java Service 一样调用大模型能力。</p><h2 id=二langchain4j-的两个抽象层次>二、LangChain4j 的两个抽象层次</h2><p>从课程材料的视角看，LangChain4j 大致运行在两个抽象层次上。</p><p>第一层是低层次抽象。开发者可以直接使用 <code>ChatLanguageModel</code>、<code>UserMessage</code>、<code>AiMessage</code>、<code>EmbeddingStore</code>、<code>Embedding</code> 等组件。这一层更接近 LangChain4j 的“原语”：控制力强，适合对调用过程做精细编排，但也意味着需要写更多胶水代码。</p><p>第二层是高层次抽象。开发者使用 AI Services 这类高级 API，把模型调用封装成声明式接口。框架隐藏了大量样板代码，同时仍然允许我们配置模型、记忆、检索器和工具调用。</p><p>如果说低层次 API 更像直接操作零件，那么 AI Services 更像把零件装配成一个可复用的业务模块。对大多数 Java 后端团队来说，后者更接近日常开发习惯：先定义接口，再由框架负责运行时实现。</p><h2 id=三ai-services像-feign--spring-data-jpa-一样调用大模型>三、AI Services：像 Feign / Spring Data JPA 一样调用大模型</h2><p>课程里有一个很贴切的类比：Spring AI 的 <code>ChatClient</code> 更像 <code>WebClient</code>，走的是流式、链式的 Fluent API 风格；而 LangChain4j 的 <code>AiServices</code> 更像 Spring Data JPA 或 Feign，走的是声明式 API 风格。</p><p>这个差异非常关键。</p><p>使用 Fluent API 时，我们通常在代码中显式描述一次调用过程：设置系统提示词、拼接用户输入、配置参数、发起调用、解析结果。它直观、灵活，也适合需要临时编排的场景。</p><p>而声明式 API 的关注点不同。我们先定义一个 Java interface，用方法签名表达“我希望 AI 提供什么能力”，再通过注解、参数和构建器告诉框架如何完成模型调用。业务代码最终面对的是接口，而不是零散的 Prompt 组装逻辑。</p><p>这带来的好处是：AI 能力可以被纳入 Java 项目熟悉的分层结构中。Controller 调用 Service，Service 调用 AI Service；AI Service 背后再组合 ChatModel、Chat Memory、Retriever 和 Tools。这样一来，大模型能力就不再是散落在业务代码里的 API 调用，而成为一个有边界、有职责、可替换的工程组件。</p><h2 id=四一个-ai-service-由哪些部分组成>四、一个 AI Service 由哪些部分组成</h2><p>先看课程中的简化示例：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span>Assistant assistant <span style=color:#ff79c6>=</span> AiServices.<span style=color:#50fa7b>builder</span>(Assistant.<span style=color:#50fa7b>class</span>)
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>chatModel</span>(CHAT_MODEL)
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>chatMemory</span>(MessageWindowChatMemory.<span style=color:#50fa7b>withMaxMessages</span>(10))
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>contentRetriever</span>(createContentRetriever(documents))
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>build</span>();
+</span></span></code></pre></div><p>这段代码可以拆成四个核心角色。</p><p><code>Assistant</code> 是 AI Service 接口。它定义业务侧如何调用这项 AI 能力，例如“提问”“总结”“生成方案”或“处理运营请求”。接口本身像普通 Java Service，但运行时由 LangChain4j 生成实现。</p><p><code>chatModel</code> 是模型接入层。它负责连接底层大模型，把消息发送给模型，并接收模型响应。对业务代码来说，模型供应商、请求参数、超时重试等细节应尽量收敛在这一层。</p><p><code>chatMemory</code> 或 <code>chatMemoryProvider</code> 负责对话记忆。因为 LLM 本身是无状态的，每一次调用都不会天然记得上一轮说了什么。Chat Memory 的职责就是在调用模型前，把必要的历史消息重新放回上下文。</p><p><code>contentRetriever</code> 负责检索增强。企业问答场景中，模型不能只依赖通用知识，还需要结合制度、SLA、采购规则、交付规范等内部文档。Retriever 会根据用户问题检索相关内容，再把结果提供给模型生成回答。</p><p>因此，<code>AiServices.builder()</code> 的意义不是简单创建对象，而是把模型、记忆、知识检索等能力组装成一个可被业务层调用的 AI 服务。</p><h2 id=五chat-memory让无状态模型具备上下文>五、Chat Memory：让无状态模型具备上下文</h2><p>在 LLM 应用里，“记忆”并不是模型真的把会话永久记在自己脑子里。更准确地说，应用在每次请求时选择一部分历史消息，连同当前问题一起发送给模型。Chat Memory 管理的就是这部分历史上下文。</p><p>课程中把 Chat Memory 分成三类思路。</p><p>第一类是窗口记忆，也就是 Sliding Window Memory。它按照消息数量保留最近 N 条对话。比如 <code>MessageWindowChatMemory.withMaxMessages(10)</code> 表示只保留最近 10 条消息。这种方式简单直接，适合 Demo、轻量客服、多轮问答等场景。</p><p>第二类是 Token 记忆，也就是 Token-based Memory。它不按消息条数裁剪，而是按 token 预算控制上下文长度。这样更贴近模型真实成本和上下文窗口限制，适合对成本、延迟和上下文长度更敏感的生产系统。</p><p>第三类是持久化记忆，也就是 Persistent Memory。它把会话历史保存到文件、数据库或外部存储中，让不同请求、不同服务实例之间可以共享或恢复上下文。企业系统通常还会在这一层考虑用户隔离、审计、数据清理和权限控制。</p><p>配套项目里的 <code>EnterpriseChatMemoryProvider</code> 就体现了这种工程化选择：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span>@Override
+</span></span><span style=display:flex><span><span style=color:#8be9fd;font-style:italic>public</span> ChatMemory <span style=color:#50fa7b>get</span>(Object memoryId) {
+</span></span><span style=display:flex><span>    String id <span style=color:#ff79c6>=</span> String.<span style=color:#50fa7b>valueOf</span>(memoryId);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (id.<span style=color:#50fa7b>startsWith</span>(<span style=color:#f1fa8c>&#34;token-&#34;</span>) <span style=color:#ff79c6>||</span> id.<span style=color:#50fa7b>contains</span>(<span style=color:#f1fa8c>&#34;crm&#34;</span>)) {
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> TokenWindowChatMemory.<span style=color:#50fa7b>builder</span>()
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>id</span>(id)
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>maxTokens</span>(900, tokenCountEstimator)
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>chatMemoryStore</span>(memoryStore)
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>alwaysKeepSystemMessageFirst</span>(<span style=color:#ff79c6>true</span>)
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>build</span>();
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (id.<span style=color:#50fa7b>startsWith</span>(<span style=color:#f1fa8c>&#34;persist-&#34;</span>) <span style=color:#ff79c6>||</span> id.<span style=color:#50fa7b>contains</span>(<span style=color:#f1fa8c>&#34;ops&#34;</span>)) {
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> MessageWindowChatMemory.<span style=color:#50fa7b>builder</span>()
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>id</span>(id)
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>maxMessages</span>(24)
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>chatMemoryStore</span>(memoryStore)
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>alwaysKeepSystemMessageFirst</span>(<span style=color:#ff79c6>true</span>)
+</span></span><span style=display:flex><span>                .<span style=color:#50fa7b>build</span>();
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> MessageWindowChatMemory.<span style=color:#50fa7b>builder</span>()
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>id</span>(id)
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>maxMessages</span>(10)
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>alwaysKeepSystemMessageFirst</span>(<span style=color:#ff79c6>true</span>)
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>build</span>();
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>这里不是用一个固定策略解决所有问题，而是根据会话标识选择不同记忆策略：CRM 场景偏 token 控制，运营场景偏持久化，普通场景则使用较轻量的窗口记忆。</p><p>这也给我们一个实践建议：生产系统里的 Chat Memory 往往不是“开或不开”的问题，而是如何组合短期窗口、token 裁剪和持久化存储，让上下文既够用，又不会失控。</p><h2 id=六tools让模型从聊天走向执行>六、Tools：让模型从聊天走向执行</h2><p>如果没有工具调用，大模型更多是在“回答问题”：用户输入一段话，模型生成一段话。但企业应用通常不满足于聊天本身，它还希望 AI 能够查询客户信息、创建工单、检查库存、路由审批，甚至触发一段业务流程。</p><p>这就是 Tools 的价值。Tools 让模型可以在需要时调用外部 API、数据库查询或本地 Java 方法。对 Java 开发者来说，LangChain4j 的 <code>@Tool</code> 注解把这件事包装得很自然：我们把一个普通方法声明为工具，再用参数注解描述它需要什么输入。</p><p>配套项目中的 <code>EnterpriseOperationTools</code> 就是典型例子：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span>@Tool(name <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#34;lookupCustomer&#34;</span>, value <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#34;查询客户画像、合同等级、健康度和客户成功负责人&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#8be9fd;font-style:italic>public</span> CustomerSnapshot <span style=color:#50fa7b>lookupCustomer</span>(@P(<span style=color:#f1fa8c>&#34;客户编号，例如 C-1001&#34;</span>) String customerId) {
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> dataService.<span style=color:#50fa7b>customer</span>(customerId);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>@Tool(name <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#34;createSupportTicket&#34;</span>, value <span style=color:#ff79c6>=</span> <span style=color:#f1fa8c>&#34;为企业客户创建售后或交付工单，并按优先级分派团队&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#8be9fd;font-style:italic>public</span> Ticket <span style=color:#50fa7b>createSupportTicket</span>(
+</span></span><span style=display:flex><span>        @ToolMemoryId String memoryId,
+</span></span><span style=display:flex><span>        @P(<span style=color:#f1fa8c>&#34;客户编号&#34;</span>) String customerId,
+</span></span><span style=display:flex><span>        @P(<span style=color:#f1fa8c>&#34;工单标题&#34;</span>) String title,
+</span></span><span style=display:flex><span>        @P(<span style=color:#f1fa8c>&#34;问题描述&#34;</span>) String description,
+</span></span><span style=display:flex><span>        @P(<span style=color:#f1fa8c>&#34;优先级：LOW/MEDIUM/HIGH/CRITICAL&#34;</span>) String priority,
+</span></span><span style=display:flex><span>        @P(<span style=color:#f1fa8c>&#34;负责团队&#34;</span>) String ownerTeam
+</span></span><span style=display:flex><span>) {
+</span></span><span style=display:flex><span>    Priority parsedPriority <span style=color:#ff79c6>=</span> Priority.<span style=color:#50fa7b>valueOf</span>(priority.<span style=color:#50fa7b>toUpperCase</span>(Locale.<span style=color:#50fa7b>ROOT</span>));
+</span></span><span style=display:flex><span>    String enrichedDescription <span style=color:#ff79c6>=</span> description <span style=color:#ff79c6>+</span> <span style=color:#f1fa8c>&#34;；来源会话=&#34;</span> <span style=color:#ff79c6>+</span> memoryId;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> dataService.<span style=color:#50fa7b>createTicket</span>(customerId, title, enrichedDescription, parsedPriority, ownerTeam);
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>这段代码背后的工程意义很重要：模型并不是随意操作系统，而是在我们暴露的工具边界内行动。工具名称、说明、参数类型和返回值共同构成了模型可调用能力的契约。</p><p>配套项目里的 <code>OperationCopilot</code> 则把这些工具挂到一个 AI Service 上：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#ff79c6>return</span> AiServices.<span style=color:#50fa7b>builder</span>(OperationCopilot.<span style=color:#50fa7b>class</span>)
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>chatModel</span>(chatModel)
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>chatMemoryProvider</span>(memoryProvider)
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>contentRetriever</span>(retriever)
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>tools</span>(tools)
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>maxSequentialToolsInvocations</span>(3)
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>afterToolExecution</span>(execution <span style=color:#ff79c6>-&gt;</span> System.<span style=color:#50fa7b>out</span>.<span style=color:#50fa7b>println</span>(<span style=color:#f1fa8c>&#34;AI Tool executed: &#34;</span> <span style=color:#ff79c6>+</span> execution.<span style=color:#50fa7b>request</span>().<span style=color:#50fa7b>name</span>()))
+</span></span><span style=display:flex><span>        .<span style=color:#50fa7b>build</span>();
+</span></span></code></pre></div><p>这样一来，用户可以用自然语言提出运营请求，而 AI Service 可以在模型判断后调用工具完成动作。比如查询客户画像、检查库存、创建支持工单或路由采购审批。</p><p>当然，Tools 也意味着更高的工程责任。真正进入生产环境时，我们需要考虑权限校验、参数验证、幂等控制、审计日志和人工确认机制。模型可以决定“调用哪个工具”，但业务系统必须决定“哪些工具可以被调用，以及调用后如何受控落地”。</p><h2 id=七企业问答-ai-service-示例>七、企业问答 AI Service 示例</h2><p>最后，我们用配套项目中的企业知识库助手，把前面的概念串起来。</p><p>先看 AI Service 接口：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span><span style=color:#8be9fd;font-style:italic>public</span> <span style=color:#8be9fd;font-style:italic>interface</span> <span style=color:#50fa7b>EnterpriseKnowledgeAssistant</span> {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    @SystemMessage(<span style=color:#f1fa8c>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            你是企业运营智能中台的知识库助手。
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            回答必须结合检索到的企业制度、SLA、采购、交付、CRM 或安全规范。
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            如果资料不足，请明确说明不确定，并给出下一步应找哪个部门确认。
+</span></span></span><span style=display:flex><span><span style=color:#f1fa8c>            &#34;&#34;&#34;</span>)
+</span></span><span style=display:flex><span>    String <span style=color:#50fa7b>ask</span>(@MemoryId String conversationId, @UserMessage String question);
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>这个接口里有几个关键信息。</p><p><code>@SystemMessage</code> 定义了助手的角色和回答边界：它不是泛泛聊天助手，而是企业运营智能中台的知识库助手。<code>@MemoryId</code> 标识当前会话，让 Chat Memory 可以按会话隔离上下文。<code>@UserMessage</code> 则标识用户当前输入的问题。</p><p>再看 Spring 配置中的组装方式：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=display:flex><span>@Bean
+</span></span><span style=display:flex><span>EnterpriseKnowledgeAssistant <span style=color:#50fa7b>enterpriseKnowledgeAssistant</span>(ChatModel chatModel,
+</span></span><span style=display:flex><span>                                                          EnterpriseChatMemoryProvider memoryProvider,
+</span></span><span style=display:flex><span>                                                          EnterpriseKnowledgeRetriever retriever) {
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> AiServices.<span style=color:#50fa7b>builder</span>(EnterpriseKnowledgeAssistant.<span style=color:#50fa7b>class</span>)
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>chatModel</span>(chatModel)
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>chatMemoryProvider</span>(memoryProvider)
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>contentRetriever</span>(retriever)
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>storeRetrievedContentInChatMemory</span>(<span style=color:#ff79c6>true</span>)
+</span></span><span style=display:flex><span>            .<span style=color:#50fa7b>build</span>();
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>这段代码把一个企业问答服务拆成了清晰的组件：</p><ul><li><code>EnterpriseKnowledgeAssistant</code>：业务侧调用的 AI Service 接口。</li><li><code>ChatModel</code>：底层模型能力。</li><li><code>EnterpriseChatMemoryProvider</code>：按会话提供记忆策略。</li><li><code>EnterpriseKnowledgeRetriever</code>：从企业知识库检索相关制度和规范。</li><li><code>storeRetrievedContentInChatMemory(true)</code>：把检索到的内容也纳入会话记忆，便于后续对话延续上下文。</li></ul><p>完整链路可以理解为：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text><span style=display:flex><span>用户问题
+</span></span><span style=display:flex><span>  -&gt; EnterpriseKnowledgeAssistant.ask(...)
+</span></span><span style=display:flex><span>  -&gt; 根据 conversationId 取得 Chat Memory
+</span></span><span style=display:flex><span>  -&gt; EnterpriseKnowledgeRetriever 检索企业知识
+</span></span><span style=display:flex><span>  -&gt; ChatModel 结合系统提示词、历史上下文和检索内容生成回答
+</span></span><span style=display:flex><span>  -&gt; 返回业务层
+</span></span></code></pre></div><p>这里最值得注意的是边界设计。企业问答不是把用户问题直接丢给模型，而是让问题经过 AI Service 接口、记忆管理、知识检索和模型调用之后，再以业务服务的形式返回结果。这样做的好处是职责清晰：业务层不关心 Prompt 如何拼接，模型层不关心 Controller 如何暴露接口，检索层也可以独立演进。</p><h2 id=八小结>八、小结</h2><p>回到开头的问题：Java 后端为什么需要 LangChain4j AI Services？</p><p>我的理解是，它把大模型调用从“外部 API 请求”推进到了“接口驱动的业务能力”。这对企业应用非常关键。因为业务系统真正需要的不是一次孤立的模型回答，而是一个可以被 Controller、Service、Workflow 稳定调用的 AI 能力边界。</p><p>这篇文章重点拆了三个核心点：</p><ul><li>AI Services 用声明式接口封装模型调用，让业务代码面对 Java interface，而不是散落的 Prompt 逻辑。</li><li>Chat Memory 解决上下文管理问题，让无状态模型在应用层获得多轮对话能力。</li><li>Tools 和 Retriever 让模型能够连接业务系统和企业知识库，从“会回答”进一步走向“能执行、能结合内部知识回答”。</li></ul><p>对 Java 团队来说，LangChain4j 的吸引力就在这里：它没有要求我们完全跳出原有工程体系，而是把 AI 能力放回熟悉的 interface、annotation、Bean 和 Service 结构中。只要边界设计得当，大模型就可以成为企业系统中的一个可治理组件，而不是一段难以维护的调用脚本。</p><p>后续如果继续深入，可以沿着两个方向学习：一是结构化输出，把模型结果稳定映射为 Java DTO；二是更完整的 RAG 与 Agent 编排，把知识检索、工具调用、评估和治理串成生产级闭环。</p><h2 id=延伸阅读>延伸阅读</h2><ul><li>LangChain4j 官方文档：https://docs.langchain4j.info/</li><li>LangChain4j GitHub 仓库：https://github.com/langchain4j/langchain4j</li></ul><hr><ul class=pager><li class=previous><a href=/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/ data-toggle=tooltip data-placement=top title="JVM 基础原理 01：一文吃透 JVM 整体架构">&larr;
+Previous Post</a></li><li class=next><a href=/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/ data-toggle=tooltip data-placement=top title="深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应">Next
+Post &rarr;</a></li></ul><link href=https://xxx.xxx.com/dist/Artalk.css rel=stylesheet><script src=https://xxx.xxx.com/dist/Artalk.js></script><div id=Comments></div><script>Artalk.init({el:"#Comments",pageKey:"https://libaoxuan-neil.github.io/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/",pageTitle:"LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口",server:"https://xxx.xxx.com",site:"xxx blog"})</script></div><div class="col-lg-2 col-lg-offset-0
+visible-lg-block
+sidebar-container
+catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>CATALOG</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
+col-md-10 col-md-offset-1
+sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/ai-services title="ai services">ai services
+</a><a href=/tags/api title=api>api
+</a><a href=/tags/chat-completions title="chat completions">chat completions
+</a><a href=/tags/java-ai title="java ai">java ai
+</a><a href=/tags/jvm title=jvm>jvm
+</a><a href=/tags/kubernetes title=kubernetes>kubernetes
+</a><a href=/tags/langchain4j title=langchain4j>langchain4j
+</a><a href=/tags/openai title=openai>openai
+</a><a href=/tags/pod title=pod>pod
+</a><a href=/tags/sse title=sse>sse
+</a><a href=/tags/%E4%BA%91%E5%8E%9F%E7%94%9F title=云原生>云原生
+</a><a href=/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94 title=流式响应>流式响应
+</a><a href=/tags/%E8%B0%83%E5%BA%A6 title=调度>调度</a></div></section></div></div></div></article><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a href=mailto:2086965923@qq.com><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-envelope fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://github.com/LiBaoxuan-Neil><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Fragments of Logic"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
+<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Fragments of Logic 2026<br></p></div></div></div></footer><script>function loadAsync(e,t){var s=document,o="script",n=s.createElement(o),i=s.getElementsByTagName(o)[0];n.src=e,t&&n.addEventListener("load",function(e){t(null,e)},!1),i.parentNode.insertBefore(n,i)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,a=$(_containerSelector),r=a.find("h1,h2,h3,h4,h5,h6");return $(e).html(""),r.each(function(){n=$(this).prop("tagName").toLowerCase(),o="#"+$(this).prop("id"),t=$(this).text(),i=$('<a href="'+o+'" rel="nofollow" title="'+t+'">'+t+"</a>"),s=$('<li class="'+n+'_nav"></li>').append(i),$(e).append(s)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>
