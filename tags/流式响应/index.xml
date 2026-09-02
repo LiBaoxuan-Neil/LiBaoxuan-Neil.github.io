@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>流式响应 on Fragments of Logic</title>
-    <link>https://libaoxuan-neil.github.io/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</link>
+    <link>http://localhost:1313/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</link>
     <description>Recent content in 流式响应 on Fragments of Logic</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 31 Aug 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="https://libaoxuan-neil.github.io/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应</title>
-      <link>https://libaoxuan-neil.github.io/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</link>
+      <link>http://localhost:1313/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</link>
       <pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>
-      <guid>https://libaoxuan-neil.github.io/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</guid>
+      <guid>http://localhost:1313/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/</guid>
       <description>&lt;p&gt;当你第一次用代码调用 &lt;code&gt;gpt-4o&lt;/code&gt; 时，最先遇到的往往不是一个&amp;quot;模型&amp;quot;，而是一长串需要填对的参数：模型 ID 填什么？消息数组怎么组织？要不要开流式传输？这些问题的答案，都藏在 OpenAI 官方 SDK 的核心类型 &lt;code&gt;ChatCompletionCreateParams&lt;/code&gt; 和它背后那个最常被调用的接口 &lt;code&gt;/chat/completions&lt;/code&gt; 之中。&lt;/p&gt;</description>
     </item>
   </channel>
