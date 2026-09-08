@@ -1,1 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>LangChain4j on Fragments of Logic</title><link>https://libaoxuan-neil.github.io/tags/langchain4j/</link><description>Recent content in LangChain4j on Fragments of Logic</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Mon, 06 Jul 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://libaoxuan-neil.github.io/tags/langchain4j/index.xml" rel="self" type="application/rss+xml"/><item><title>LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口</title><link>https://libaoxuan-neil.github.io/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/</link><pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate><guid>https://libaoxuan-neil.github.io/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/</guid><description>&lt;p&gt;作为 Java 后端开发者，我们过去接入外部能力时，习惯把它封装成 SDK、Client、Repository 或 Service。但大模型进入业务系统后，问题会变得更复杂：它不只是一次 HTTP 调用，还涉及 Prompt、上下文、工具调用、知识检索、结构化输出和调用治理。&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>LangChain4j on Fragments of Logic</title>
+    <link>https://libaoxuan-neil.github.io/tags/langchain4j/</link>
+    <description>Recent content in LangChain4j on Fragments of Logic</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 06 Jul 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://libaoxuan-neil.github.io/tags/langchain4j/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口</title>
+      <link>https://libaoxuan-neil.github.io/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/</link>
+      <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+      <guid>https://libaoxuan-neil.github.io/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/</guid>
+      <description>&lt;p&gt;作为 Java 后端开发者，我们过去接入外部能力时，习惯把它封装成 SDK、Client、Repository 或 Service。但大模型进入业务系统后，问题会变得更复杂：它不只是一次 HTTP 调用，还涉及 Prompt、上下文、工具调用、知识检索、结构化输出和调用治理。&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

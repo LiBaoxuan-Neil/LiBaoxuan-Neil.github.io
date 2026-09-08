@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Fragments of Logic">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png">
+    <meta property="twitter:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png" />
+    
+
+    
+    <meta name="title" content="Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问" />
+    <meta property="og:title" content="Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问" />
+    <meta property="twitter:title" content="Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问" />
+    
+
+    
+    <meta name="description" content="以节点 curl Pod IP 为切入点，循序渐进讲解 Kubernetes 虚拟网络的基本原理：网络命名空间、veth pair、Linux 网桥、CNI、Pod CIDR、节点路由、Service 以及 containerPort。">
+    <meta property="og:description" content="以节点 curl Pod IP 为切入点，循序渐进讲解 Kubernetes 虚拟网络的基本原理：网络命名空间、veth pair、Linux 网桥、CNI、Pod CIDR、节点路由、Service 以及 containerPort。" />
+    <meta property="twitter:description" content="以节点 curl Pod IP 为切入点，循序渐进讲解 Kubernetes 虚拟网络的基本原理：网络命名空间、veth pair、Linux 网桥、CNI、Pod CIDR、节点路由、Service 以及 containerPort。" />
+    
+
+    <meta property="og:url" content="https://libaoxuan-neil.github.io/post/kubernetes-%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E5%85%A5%E9%97%A8pod-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AF%E4%BB%A5%E8%A2%AB%E8%8A%82%E7%82%B9%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE/" />
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问 | Where Code Meets Contemplation</title>
+
+    <link rel="canonical" href="/post/kubernetes-%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E5%85%A5%E9%97%A8pod-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AF%E4%BB%A5%E8%A2%AB%E8%8A%82%E7%82%B9%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE/">
+
+    
+
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.min.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Fragments of Logic</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/about//">ABOUT</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/img/downloaded-image.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/kubernetes" title="Kubernetes">
+                            Kubernetes
+                        </a>
+                        
+                        <a class="tag" href="/tags/%E7%BD%91%E7%BB%9C" title="网络">
+                            网络
+                        </a>
+                        
+                        <a class="tag" href="/tags/pod" title="Pod">
+                            Pod
+                        </a>
+                        
+                        <a class="tag" href="/tags/cni" title="CNI">
+                            CNI
+                        </a>
+                        
+                        <a class="tag" href="/tags/service" title="Service">
+                            Service
+                        </a>
+                        
+                        <a class="tag" href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
+                            云原生
+                        </a>
+                        
+                    </div>
+                    <h1>Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问</h1>
+                    <h2 class="subheading">从网络命名空间、veth、网桥到 CNI 和 Service</h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                LiBaoxuan
+                             
+                            on 
+                            Tuesday, September 8, 2026
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>刚接触 Kubernetes 网络时，一个看起来很神奇的现象是：在 Kubernetes 节点上，直接执行下面的命令，就能访问某个 Pod：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl 10.42.0.43
+</span></span></code></pre></div><p>这个地址既不是节点的 IP，也不是 Service 的 ClusterIP，而是 Pod IP。为什么节点可以直接访问一个看起来位于“容器内部”的地址？Pod 的网卡到底在哪里？veth、网桥、路由和 CNI 又分别做了什么？</p>
+<p>本文不从复杂的网络插件源码讲起，而是先建立一个适合初学者的心智模型，再把一次 HTTP 请求的完整路径串起来。</p>
+<h2 id="一先给出结论">一、先给出结论</h2>
+<p>Kubernetes 的 Pod 网络并不是一套脱离操作系统的魔法。它主要利用 Linux 内核提供的几种能力：</p>
+<ul>
+<li><strong>网络命名空间（Network Namespace）</strong>：隔离每个 Pod 看到的网卡、IP、路由和端口。</li>
+<li><strong>veth pair</strong>：一对虚拟网卡，像一根连接 Pod 和节点的虚拟网线。</li>
+<li><strong>Linux 网桥（Bridge）</strong>：节点内部的虚拟交换机，连接多个 Pod。</li>
+<li><strong>路由和转发</strong>：决定数据包应该从哪个接口发出、送往哪个 Pod 或节点。</li>
+<li><strong>CNI（Container Network Interface）</strong>：在 Pod 创建和删除时，负责把网络设备、IP 和路由配置好。</li>
+</ul>
+<p>因此可以把整件事浓缩成一句话：</p>
+<blockquote>
+<p>Pod 是被网络命名空间隔离出来的网络空间；veth 把 Pod 接入节点；CNI 再通过网桥、路由或隧道，让节点和其他 Pod 能够找到它。</p>
+</blockquote>
+<p>你的 <code>curl</code> 能成功，是因为命令在 Kubernetes 节点上执行，而该节点已经具备访问 Pod 网段的网络路径。</p>
+<h2 id="二从-linux-的网络命名空间开始">二、从 Linux 的网络命名空间开始</h2>
+<h3 id="21-网络命名空间是什么">2.1 网络命名空间是什么</h3>
+<p>Linux 的网络命名空间可以理解为一套独立的网络视图。每个网络命名空间拥有自己的：</p>
+<ul>
+<li>网络接口，例如 <code>eth0</code>、<code>lo</code>；</li>
+<li>IP 地址；</li>
+<li>路由表；</li>
+<li>端口空间；</li>
+<li>部分网络协议栈状态和防火墙规则。</li>
+</ul>
+<p>普通 Linux 主机只有一个主要的网络命名空间。运行容器时，容器运行时可以为容器创建一个新的网络命名空间，让容器中的进程看到一套与宿主机不同的网络环境。</p>
+<p>这就是“隔离”的来源：容器里的 <code>localhost</code> 指向容器所在的网络命名空间，而不是节点的 <code>localhost</code>。</p>
+<h3 id="22-为什么两个环境都能使用-80-端口">2.2 为什么两个环境都能使用 80 端口</h3>
+<p>假设节点上已经有一个程序监听节点网络命名空间的 80 端口，同时某个 Pod 内的 nginx 监听 Pod 网络命名空间的 80 端口，这两个监听通常不会冲突。</p>
+<p>原因不是它们使用了不同的数字端口，而是它们属于不同的网络命名空间，拥有不同的端口空间。</p>
+<p>但同一个 Pod 中的多个容器默认共享网络命名空间。因此，如果同一个 Pod 内的两个容器都尝试监听 <code>0.0.0.0:80</code>，就会发生真正的端口冲突。</p>
+<h3 id="23-pod-和容器在网络上的关系">2.3 Pod 和容器在网络上的关系</h3>
+<p>Kubernetes 的 Pod 通常包含一个或多个容器，但一个 Pod 只拥有一个 Pod 网络身份：</p>
+<ul>
+<li>一个 Pod IP；</li>
+<li>一个网络命名空间；</li>
+<li>一个端口空间。</li>
+</ul>
+<p>同一个 Pod 内的容器可以通过 <code>localhost</code> 互相访问。例如，主容器可以访问 sidecar 容器提供的 <code>localhost:15000</code> 服务。</p>
+<p>不同 Pod 通常拥有不同的网络命名空间和不同的 Pod IP。它们不能直接使用对方的 <code>localhost</code>，而应使用对方的 Pod IP、Service 名称或其他服务发现方式。</p>
+<h2 id="三veth-pair连接-pod-与节点的虚拟网线">三、veth pair：连接 Pod 与节点的虚拟网线</h2>
+<h3 id="31-veth-是什么">3.1 veth 是什么</h3>
+<p><strong>veth</strong> 是 virtual Ethernet 的缩写。它总是成对创建：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>veth pair
+</span></span><span style="display:flex;"><span>┌──────────────┐                 ┌──────────────┐
+</span></span><span style="display:flex;"><span>│  Pod 一端     │ &lt;--------------&gt; │  节点一端     │
+</span></span><span style="display:flex;"><span>│  eth0         │    虚拟网线      │  vethxxxx     │
+</span></span><span style="display:flex;"><span>└──────────────┘                 └──────────────┘
+</span></span></code></pre></div><p>veth pair 的特性很简单：从一端发出的数据包，会从另一端出现。</p>
+<p>创建 Pod 网络时，CNI 通常会完成类似的动作：</p>
+<ol>
+<li>创建一对 veth；</li>
+<li>把一端放入 Pod 的网络命名空间；</li>
+<li>把 Pod 内的一端命名为 <code>eth0</code>；</li>
+<li>把节点内的另一端接入网桥或其他转发设备；</li>
+<li>给 Pod 的 <code>eth0</code> 配置 Pod IP；</li>
+<li>在 Pod 内配置默认路由。</li>
+</ol>
+<p>所以，Pod 里的 <code>eth0</code> 并不是一块真实的物理网卡，而是 veth pair 的一端。</p>
+<h3 id="32-一次从-pod-发出的数据">3.2 一次从 Pod 发出的数据</h3>
+<p>假设 Pod A 的 IP 是 <code>10.42.0.43</code>，它访问 Pod B 的 IP <code>10.42.0.42</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Pod A 的 eth0
+</span></span><span style="display:flex;"><span>      │
+</span></span><span style="display:flex;"><span>      │ veth pair
+</span></span><span style="display:flex;"><span>      ▼
+</span></span><span style="display:flex;"><span>节点上的 vethxxxx
+</span></span><span style="display:flex;"><span>      │
+</span></span><span style="display:flex;"><span>      │ 网桥转发或节点路由
+</span></span><span style="display:flex;"><span>      ▼
+</span></span><span style="display:flex;"><span>节点上的另一个 vethyyyy
+</span></span><span style="display:flex;"><span>      │
+</span></span><span style="display:flex;"><span>      │ veth pair
+</span></span><span style="display:flex;"><span>      ▼
+</span></span><span style="display:flex;"><span>Pod B 的 eth0
+</span></span></code></pre></div><p>如果两个 Pod 位于同一个节点上，数据通常可以在节点内部完成转发，不需要经过物理网卡。</p>
+<h2 id="四linux-网桥节点内部的虚拟交换机">四、Linux 网桥：节点内部的虚拟交换机</h2>
+<h3 id="41-网桥的基本作用">4.1 网桥的基本作用</h3>
+<p>Linux 网桥可以把它想象成一台软件实现的二层交换机：</p>
+<ul>
+<li>每个 veth 可以看成交换机上的一个端口；</li>
+<li>多个 Pod 通过各自的 veth 接入网桥；</li>
+<li>网桥根据 MAC 地址学习和转发以太网帧。</li>
+</ul>
+<p>简化后的节点内部结构如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>                 节点网络命名空间
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span> Pod A                     Pod B
+</span></span><span style="display:flex;"><span>10.42.0.43                10.42.0.42
+</span></span><span style="display:flex;"><span>   │ eth0                    │ eth0
+</span></span><span style="display:flex;"><span>   │                         │
+</span></span><span style="display:flex;"><span> veth-a                    veth-b
+</span></span><span style="display:flex;"><span>   │                         │
+</span></span><span style="display:flex;"><span>   └──────────┬──────────────┘
+</span></span><span style="display:flex;"><span>              ▼
+</span></span><span style="display:flex;"><span>        Linux 网桥
+</span></span><span style="display:flex;"><span>       （虚拟交换机）
+</span></span></code></pre></div><p>在同一节点上，Pod 之间的通信可能直接经过网桥，也可能由 CNI 使用其他内核转发机制完成。具体实现取决于 CNI 插件和网络模式，但“Pod 通过虚拟接口接入节点，再由节点转发”的整体模型是一样的。</p>
+<h3 id="42-网桥和路由不是同一个东西">4.2 网桥和路由不是同一个东西</h3>
+<p>这两个概念经常混在一起：</p>
+<ul>
+<li><strong>网桥</strong>主要解决二层转发，类似交换机，依据 MAC 地址转发帧。</li>
+<li><strong>路由</strong>主要解决三层转发，依据目标 IP 和路由表选择出口。</li>
+</ul>
+<p>简单理解：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>网桥：这个以太网帧应该从哪个端口出去？
+</span></span><span style="display:flex;"><span>路由：去这个 IP 网段，应该走哪个网络接口或下一跳？
+</span></span></code></pre></div><p>在实际 CNI 中，两者可能同时存在，也可能主要使用三层路由、隧道或 eBPF 等机制。初学时不必把所有插件实现强行归结为“只有网桥”。</p>
+<h2 id="五cni负责把-pod-网络配置出来">五、CNI：负责把 Pod 网络配置出来</h2>
+<h3 id="51-cni-是规范不是单一插件">5.1 CNI 是规范，不是单一插件</h3>
+<p>CNI 的全称是 Container Network Interface。它定义了容器运行时与网络插件之间如何协作。</p>
+<p>当 kubelet 请求容器运行时创建 Pod 沙箱时，运行时会调用 CNI 插件。CNI 插件负责：</p>
+<ul>
+<li>创建或配置网络接口；</li>
+<li>将接口放入 Pod 的网络命名空间；</li>
+<li>分配 Pod IP；</li>
+<li>配置 Pod 内的路由；</li>
+<li>配置节点侧的路由、网桥、隧道或转发规则；</li>
+<li>Pod 删除时清理这些资源。</li>
+</ul>
+<p>所以 CNI 更像一套“网络插件接口标准”，而不是某一个固定的软件。</p>
+<p>常见的 CNI 或网络方案包括：</p>
+<ul>
+<li>Flannel：常用于提供 Pod 网络连通；</li>
+<li>Calico：既能提供网络连通，也擅长 NetworkPolicy；</li>
+<li>Cilium：使用 eBPF 提供网络、策略和可观测性能力；</li>
+<li>Canal：通常可以理解为 Flannel 与 Calico 的组合。</li>
+</ul>
+<p>RKE2 的具体 CNI 取决于安装配置。不要仅凭 RKE2 这个发行版名称就断定当前集群一定使用某一种插件，实际情况可以查看集群配置和运行中的 DaemonSet。</p>
+<h3 id="52-为什么每个节点都需要-cni-组件">5.2 为什么每个节点都需要 CNI 组件</h3>
+<p>CNI 通常以 DaemonSet 的形式在每个节点上运行，因为每个节点都要负责本地 Pod 的网络配置，并可能参与跨节点转发。</p>
+<p>可以查看网络相关组件：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get pods -A -o wide
+</span></span></code></pre></div><p>也可以搜索名称中包含网络插件的 Pod：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get pods -A | grep -Ei <span style="color:#f1fa8c">&#39;calico|flannel|canal|cilium|weave&#39;</span>
+</span></span></code></pre></div><h2 id="六pod-cidrpod-地址从哪里来">六、Pod CIDR：Pod 地址从哪里来</h2>
+<h3 id="61-pod-网段和-service-网段">6.1 Pod 网段和 Service 网段</h3>
+<p>Kubernetes 集群通常会规划不同用途的地址段：</p>
+<table>
+  <thead>
+      <tr>
+          <th>地址段</th>
+          <th>用途</th>
+          <th>示例</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Pod CIDR</td>
+          <td>分配给 Pod</td>
+          <td><code>10.42.0.0/16</code></td>
+      </tr>
+      <tr>
+          <td>Service CIDR</td>
+          <td>分配给 Service 虚拟地址</td>
+          <td><code>10.43.0.0/16</code></td>
+      </tr>
+      <tr>
+          <td>Node 网段</td>
+          <td>分配给节点或物理网络</td>
+          <td>例如 <code>192.168.1.0/24</code></td>
+      </tr>
+  </tbody>
+</table>
+<p>Pod IP 和 Service ClusterIP 都是集群虚拟网络中的地址，但二者用途不同：</p>
+<ul>
+<li>Pod IP 标识具体的 Pod 实例；</li>
+<li>Service IP 标识一组后端 Pod 的稳定服务入口。</li>
+</ul>
+<h3 id="62-pod-cidr-通常会按节点切分">6.2 Pod CIDR 通常会按节点切分</h3>
+<p>为了让各节点管理自己的 Pod 地址，集群可能把大的 Pod 网段分配为多个节点子网：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>集群 Pod CIDR：10.42.0.0/16
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>节点 A：10.42.0.0/24
+</span></span><span style="display:flex;"><span>节点 B：10.42.1.0/24
+</span></span><span style="display:flex;"><span>节点 C：10.42.2.0/24
+</span></span></code></pre></div><p>在截图中，两个 nginx Pod 的 IP 是：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>10.42.0.42
+</span></span><span style="display:flex;"><span>10.42.0.43
+</span></span></code></pre></div><p>它们都显示运行在 <code>rke2-single</code> 节点上，因此很可能都属于该节点负责的 Pod 子网。最终仍应以实际路由表和 CNI 配置为准。</p>
+<p>查看 Pod 所在节点和 IP：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get pods -n k8s-demo -o wide
+</span></span></code></pre></div><p>查看节点的 Pod CIDR：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get nodes -o <span style="color:#8be9fd;font-style:italic">jsonpath</span><span style="color:#ff79c6">=</span><span style="color:#f1fa8c">&#39;{range .items[*]}{.metadata.name}{&#34;\t&#34;}{.spec.podCIDR}{&#34;\n&#34;}{end}&#39;</span>
+</span></span></code></pre></div><h2 id="七为什么节点能直接-curl-pod-ip">七、为什么节点能直接 curl Pod IP</h2>
+<p>现在回到最开始的命令：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl 10.42.0.43
+</span></span></code></pre></div><p>假设命令是在 <code>rke2-single</code> 节点上执行的，完整过程可以拆成以下步骤：</p>
+<h3 id="第一步curl-创建-tcp-连接">第一步：curl 创建 TCP 连接</h3>
+<p><code>curl</code> 默认访问 HTTP 的 80 端口，因此目标是：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>目标 IP：10.42.0.43
+</span></span><span style="display:flex;"><span>目标端口：80
+</span></span></code></pre></div><p>节点上的进程先把目标 IP 交给节点内核网络栈。</p>
+<h3 id="第二步节点查询路由表">第二步：节点查询路由表</h3>
+<p>节点内核会查询路由表，判断 <code>10.42.0.43</code> 应该从哪个接口发出：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip route get 10.42.0.43
+</span></span></code></pre></div><p>如果结果显示该地址通过某个 CNI 接口、网桥或本地路由可达，就说明节点知道如何把数据包送过去。</p>
+<h3 id="第三步数据包进入-cni-网络">第三步：数据包进入 CNI 网络</h3>
+<p>数据包根据路由进入节点侧的 CNI 网络设备。对于同节点 Pod，可能经过：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>节点路由 → 网桥 → veth → Pod eth0
+</span></span></code></pre></div><p>对于跨节点 Pod，则可能经过：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>节点路由 → CNI 跨节点转发 → 另一节点 → veth → Pod eth0
+</span></span></code></pre></div><p>跨节点转发的具体方式可能是 VXLAN、host-gw、BGP、eBPF 或其他实现，不能只用一种方式概括所有集群。</p>
+<h3 id="第四步nginx-监听-80-端口">第四步：nginx 监听 80 端口</h3>
+<p>Pod 网络命名空间内的 nginx 进程监听 80 端口，收到请求后返回默认 HTML 页面。</p>
+<p>因此，节点能够访问 Pod IP，并不是因为 Docker 或 Kubernetes 自动做了一个“宿主机端口映射”，而是因为节点本身就是 Pod 网络的一部分，CNI 已经配置了到 Pod 网段的路径。</p>
+<h2 id="八containerport-80-到底做了什么">八、<code>containerPort: 80</code> 到底做了什么</h2>
+<p>Deployment 中的配置是：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">ports</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#ff79c6">containerPort</span>: <span style="color:#bd93f9">80</span>
+</span></span></code></pre></div><p>这个字段很容易和 Docker 的端口映射混淆，但它们不是一回事。</p>
+<h3 id="81-containerport-不是端口映射">8.1 <code>containerPort</code> 不是端口映射</h3>
+<p>Docker 中的端口映射通常类似：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run -p 8080:80 nginx
+</span></span></code></pre></div><p>它表达的是：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>宿主机 8080 → 容器 80
+</span></span></code></pre></div><p>而 Kubernetes 的 <code>containerPort</code> 主要是对容器端口的声明和元数据描述：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">containerPort</span>: <span style="color:#bd93f9">80</span>
+</span></span></code></pre></div><p>它通常不会：</p>
+<ul>
+<li>自动开放节点端口；</li>
+<li>自动创建 Service；</li>
+<li>自动完成宿主机端口到 Pod 端口的映射；</li>
+<li>让 nginx 开始监听 80 端口。</li>
+</ul>
+<p>真正监听端口的是容器里的应用进程，也就是 nginx。</p>
+<h3 id="82-service-如何引用这个端口">8.2 Service 如何引用这个端口</h3>
+<p>Service 可以把自己的 <code>port</code> 转发到后端 Pod 的 <code>targetPort</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">apiVersion</span>: v1
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">kind</span>: Service
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">metadata</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">name</span>: my-nginx
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">selector</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">run</span>: my-nginx
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">ports</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: http
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">port</span>: <span style="color:#bd93f9">80</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">targetPort</span>: <span style="color:#bd93f9">80</span>
+</span></span></code></pre></div><p>这里的关系是：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>访问 Service:80
+</span></span><span style="display:flex;"><span>       ↓
+</span></span><span style="display:flex;"><span>转发到某个 Pod:80
+</span></span></code></pre></div><p><code>targetPort: 80</code> 可以写成数字，也可以引用容器端口名称。把端口名称写出来通常更清晰：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">containers</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#ff79c6">name</span>: my-nginx
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">image</span>: nginx:latest
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ff79c6">name</span>: http
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">containerPort</span>: <span style="color:#bd93f9">80</span>
+</span></span></code></pre></div><p>然后 Service 使用：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">targetPort</span>: http
+</span></span></code></pre></div><h2 id="九service-解决的不是pod-能不能通信">九、Service 解决的不是“Pod 能不能通信”</h2>
+<h3 id="91-直接访问-pod-ip-的问题">9.1 直接访问 Pod IP 的问题</h3>
+<p>虽然节点或其他 Pod 可能可以直接访问 Pod IP，但不建议把 Pod IP 写死在业务配置里，原因有两个：</p>
+<ol>
+<li><strong>Pod IP 不稳定</strong>：Pod 被删除、重建、滚动更新后，新的 Pod 可能获得不同的 IP。</li>
+<li><strong>Pod IP 不代表服务</strong>：Deployment 有多个副本时，每个副本都有自己的 IP，客户端需要自己选择目标并处理故障。</li>
+</ol>
+<h3 id="92-service-提供稳定入口">9.2 Service 提供稳定入口</h3>
+<p>Service 通过 selector 找到匹配的 Pod，并维护后端端点：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>客户端
+</span></span><span style="display:flex;"><span>  │
+</span></span><span style="display:flex;"><span>  ▼
+</span></span><span style="display:flex;"><span>Service: my-nginx
+</span></span><span style="display:flex;"><span>  │
+</span></span><span style="display:flex;"><span>  ├── Pod 10.42.0.42:80
+</span></span><span style="display:flex;"><span>  └── Pod 10.42.0.43:80
+</span></span></code></pre></div><p>客户端只需要访问 Service 的 DNS 名称：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl http://my-nginx
+</span></span></code></pre></div><p>跨命名空间时可以使用完整的 DNS 名称：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl http://my-nginx.k8s-demo.svc.cluster.local
+</span></span></code></pre></div><p>Service 通常提供：</p>
+<ul>
+<li>稳定的虚拟 IP；</li>
+<li>稳定的 DNS 名称；</li>
+<li>后端 Pod 的自动发现；</li>
+<li>多副本之间的流量分配；</li>
+<li>Pod 就绪状态变化时的端点更新。</li>
+</ul>
+<p>查看 Service 后端：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get endpoints my-nginx -n k8s-demo
+</span></span></code></pre></div><p>在较新的 Kubernetes 版本中，也可以查看 EndpointSlice：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get endpointslice -n k8s-demo
+</span></span></code></pre></div><h3 id="93-service-的访问范围">9.3 Service 的访问范围</h3>
+<p>默认类型 <code>ClusterIP</code> 的 Service 主要用于集群内部访问。要从集群外部访问，可以根据场景使用：</p>
+<ul>
+<li><code>NodePort</code>：在节点上暴露一个端口；</li>
+<li><code>LoadBalancer</code>：请求云平台或基础设施提供外部负载均衡；</li>
+<li><code>Ingress</code>：以 HTTP/HTTPS 规则统一对外提供入口；</li>
+<li><code>Gateway API</code>：更现代、更结构化的流量入口模型；</li>
+<li><code>kubectl port-forward</code>：适合临时调试，不适合作为生产入口。</li>
+</ul>
+<h2 id="十为什么集群外的电脑通常不能-curl-pod-ip">十、为什么集群外的电脑通常不能 curl Pod IP</h2>
+<p>Pod IP 通常属于集群内部的虚拟地址空间，例如：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>10.42.0.0/16
+</span></span></code></pre></div><p>你的个人电脑通常没有到这个网段的路由。即使你知道 Pod IP，也不代表网络路径存在。</p>
+<p>不同位置的访问情况大致如下：</p>
+<table>
+  <thead>
+      <tr>
+          <th>发起位置</th>
+          <th>直接访问 Pod IP</th>
+          <th>主要原因</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Pod 所在节点</td>
+          <td>通常可以</td>
+          <td>节点有 CNI 路由和转发能力</td>
+      </tr>
+      <tr>
+          <td>其他 Kubernetes 节点</td>
+          <td>通常可以</td>
+          <td>CNI 提供跨节点 Pod 网络</td>
+      </tr>
+      <tr>
+          <td>集群内其他 Pod</td>
+          <td>通常可以</td>
+          <td>Pod 网络设计要求 Pod 之间可达</td>
+      </tr>
+      <tr>
+          <td>集群外部电脑</td>
+          <td>通常不可以</td>
+          <td>没有 Pod 网段路由或隧道</td>
+      </tr>
+      <tr>
+          <td>公网客户端</td>
+          <td>通常不可以</td>
+          <td>Pod IP 不是公网服务地址</td>
+      </tr>
+  </tbody>
+</table>
+<p>这里的“通常”很重要，因为 NetworkPolicy、防火墙、云网络 ACL、CNI 配置和路由模式都可能改变实际结果。</p>
+<h2 id="十一用几条命令观察真实网络">十一、用几条命令观察真实网络</h2>
+<h3 id="111-确认-pod-的-ip-和节点">11.1 确认 Pod 的 IP 和节点</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl get pod -n k8s-demo -o wide
+</span></span></code></pre></div><p>重点关注：</p>
+<ul>
+<li><code>IP</code>：Pod IP；</li>
+<li><code>NODE</code>：Pod 所在节点；</li>
+<li><code>NOMINATED NODE</code>：调度抢占相关信息，通常为空。</li>
+</ul>
+<h3 id="112-查看节点如何到达-pod-ip">11.2 查看节点如何到达 Pod IP</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip route get 10.42.0.43
+</span></span></code></pre></div><p>这条命令比单纯查看完整路由表更适合入门，因为它直接回答：</p>
+<blockquote>
+<p>去 <code>10.42.0.43</code> 的数据包会从哪里走？</p>
+</blockquote>
+<h3 id="113-查看节点路由表">11.3 查看节点路由表</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip route
+</span></span></code></pre></div><p>可以重点寻找包含 Pod 网段的路由，例如：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>10.42.0.0/24 dev cni0
+</span></span></code></pre></div><p>或：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>10.42.0.0/24 via &lt;某个节点地址&gt; dev flannel.1
+</span></span></code></pre></div><p>实际接口名称会因 CNI 和网络模式不同而变化。</p>
+<h3 id="114-查看网桥和链路">11.4 查看网桥和链路</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ip link show <span style="color:#8be9fd;font-style:italic">type</span> bridge
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>bridge link
+</span></span></code></pre></div><p>在某些集群中也可能看到类似 <code>cni0</code>、<code>flannel.1</code>、<code>vxlan.calico</code> 等接口，但不能假定所有环境都存在完全相同的名称。</p>
+<h3 id="115-查看-http-连接细节">11.5 查看 HTTP 连接细节</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -v http://10.42.0.43
+</span></span></code></pre></div><p><code>-v</code> 会显示 DNS、TCP 连接、HTTP 请求和响应头等信息。可以用它区分：</p>
+<ul>
+<li>网络不通；</li>
+<li>端口不通；</li>
+<li>HTTP 服务返回错误；</li>
+<li>nginx 正常返回页面。</li>
+</ul>
+<h3 id="116-从-pod-内部测试">11.6 从 Pod 内部测试</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl <span style="color:#8be9fd;font-style:italic">exec</span> -n k8s-demo -it &lt;pod-name&gt; -- sh
+</span></span></code></pre></div><p>进入 Pod 后测试另一个 Pod：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl http://10.42.0.42
+</span></span></code></pre></div><p>如果镜像没有 <code>curl</code>，可以尝试 <code>wget</code>，或者临时启动一个网络诊断 Pod。</p>
+<h2 id="十二把整个模型串成一张图">十二、把整个模型串成一张图</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>                         集群内部网络
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  节点 Shell
+</span></span><span style="display:flex;"><span>  curl 10.42.0.43
+</span></span><span style="display:flex;"><span>        │
+</span></span><span style="display:flex;"><span>        ▼
+</span></span><span style="display:flex;"><span>  节点路由表：目标属于 Pod 网段
+</span></span><span style="display:flex;"><span>        │
+</span></span><span style="display:flex;"><span>        ▼
+</span></span><span style="display:flex;"><span>  CNI 转发层
+</span></span><span style="display:flex;"><span>  网桥 / 路由 / 隧道 / eBPF
+</span></span><span style="display:flex;"><span>        │
+</span></span><span style="display:flex;"><span>        ├────────────── 同节点 ──────────────┐
+</span></span><span style="display:flex;"><span>        │                                    │
+</span></span><span style="display:flex;"><span>        ▼                                    ▼
+</span></span><span style="display:flex;"><span>  veth pair                            veth pair
+</span></span><span style="display:flex;"><span>        │                                    │
+</span></span><span style="display:flex;"><span>        ▼                                    ▼
+</span></span><span style="display:flex;"><span>  Pod A eth0                          Pod B eth0
+</span></span><span style="display:flex;"><span>  10.42.0.43:80                       10.42.0.42:80
+</span></span><span style="display:flex;"><span>        │                                    │
+</span></span><span style="display:flex;"><span>        └──────── nginx 监听 80 端口 ────────┘
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  Service 不在这条“直接访问 Pod IP”的路径上。
+</span></span><span style="display:flex;"><span>  Service 是为稳定寻址、端点发现和多副本流量分配提供的另一层抽象。
+</span></span></code></pre></div><h2 id="十三初学者最容易混淆的几个概念">十三、初学者最容易混淆的几个概念</h2>
+<h3 id="1-pod-ip-和-service-ip-不一样">1. Pod IP 和 Service IP 不一样</h3>
+<p>Pod IP 指向一个具体的 Pod；Service IP 指向一组后端 Pod 的服务入口。</p>
+<h3 id="2-containerport-和端口映射不一样">2. <code>containerPort</code> 和端口映射不一样</h3>
+<p><code>containerPort</code> 是端口声明，不等于宿主机端口开放，也不等于 <code>docker -p</code>。</p>
+<h3 id="3-节点能访问-pod-ip不代表公网能访问">3. 节点能访问 Pod IP，不代表公网能访问</h3>
+<p>节点拥有 Pod 网段路由，公网客户端通常没有。可达性取决于网络路径，而不是只取决于 IP 看起来是否正确。</p>
+<h3 id="4-cni-不是只有网桥">4. CNI 不是只有网桥</h3>
+<p>CNI 可能使用网桥、路由、VXLAN、BGP、eBPF 等机制。网桥是一个很好的入门模型，但不是所有集群的完整实现。</p>
+<h3 id="5-pod-ip-不适合写死">5. Pod IP 不适合写死</h3>
+<p>Pod 可以被重建，IP 会变化。需要稳定访问时使用 Service DNS，而不是把某个 Pod IP 固定写入配置。</p>
+<h2 id="十四总结记住这五句话">十四、总结：记住这五句话</h2>
+<ol>
+<li><strong>容器本质上是被 Linux 内核隔离机制包装的进程。</strong></li>
+<li><strong>网络命名空间为 Pod 提供独立的网卡、IP、路由和端口空间。</strong></li>
+<li><strong>veth pair 把 Pod 网络命名空间连接到节点网络命名空间。</strong></li>
+<li><strong>CNI 负责分配 Pod IP，并配置网桥、路由、隧道或其他转发机制。</strong></li>
+<li><strong>节点可以 curl Pod IP，是因为节点有到 Pod 网段的网络路径；Service 的作用是稳定入口和负载均衡，而不是让 Pod 网络从无到有。</strong></li>
+</ol>
+<p>当你再次看到类似下面的命令时：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl 10.42.0.43
+</span></span></code></pre></div><p>可以按这个顺序思考：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>目标 IP 属于哪个网段？
+</span></span><span style="display:flex;"><span>        ↓
+</span></span><span style="display:flex;"><span>当前环境有没有到这个网段的路由？
+</span></span><span style="display:flex;"><span>        ↓
+</span></span><span style="display:flex;"><span>数据包会经过哪个 CNI 接口或下一跳？
+</span></span><span style="display:flex;"><span>        ↓
+</span></span><span style="display:flex;"><span>目标 Pod 是否在监听对应端口？
+</span></span><span style="display:flex;"><span>        ↓
+</span></span><span style="display:flex;"><span>是否有 NetworkPolicy、防火墙或安全组拦截？
+</span></span></code></pre></div><p>这套思路比记住某个具体插件的接口名称更重要，因为它适用于绝大多数 Kubernetes 网络排障场景。</p>
+
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/" data-toggle="tooltip" data-placement="top" title="Kubernetes 核心概念：为什么 Pod 才是最小的调度单元">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                </ul>
+                
+
+                
+
+
+
+
+<link href="https://xxx.xxx.com/dist/Artalk.css" rel="stylesheet" />
+<script src="https://xxx.xxx.com/dist/Artalk.js"></script>
+
+
+<div id="Comments"></div>
+
+<script>
+    Artalk.init({
+        el: '#Comments',
+        pageKey: 'https:\/\/libaoxuan-neil.github.io\/post\/kubernetes-%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E5%85%A5%E9%97%A8pod-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AF%E4%BB%A5%E8%A2%AB%E8%8A%82%E7%82%B9%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE\/',
+        pageTitle: 'Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问',
+        server: 'https:\/\/xxx.xxx.com',
+        site: 'xxx blog',
+    })
+</script>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+                <section>
+                    <hr class="hidden-sm hidden-xs">
+                    <h5><a href="/tags/">FEATURED TAGS</a></h5>
+                    <div class="tags">
+                        
+                        
+                        
+                        <a href="/tags/ai-services" title="ai services">
+                            ai services
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/api" title="api">
+                            api
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/chat-completions" title="chat completions">
+                            chat completions
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/cni" title="cni">
+                            cni
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/java-ai" title="java ai">
+                            java ai
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/jvm" title="jvm">
+                            jvm
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/kubernetes" title="kubernetes">
+                            kubernetes
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/langchain4j" title="langchain4j">
+                            langchain4j
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/openai" title="openai">
+                            openai
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/pod" title="pod">
+                            pod
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/service" title="service">
+                            service
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/sse" title="sse">
+                            sse
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
+                            云原生
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94" title="流式响应">
+                            流式响应
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E7%BD%91%E7%BB%9C" title="网络">
+                            网络
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E8%B0%83%E5%BA%A6" title="调度">
+                            调度
+                        </a>
+                        
+                        
+                    </div>
+                </section>
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    
+                    <li>
+                        <a href="mailto:2086965923@qq.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/LiBaoxuan-Neil">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Fragments of Logic" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Fragments of Logic 2026
+                    
+                    <br>
+                    
+                    
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow" title="' + t + '">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+</body>
+</html>

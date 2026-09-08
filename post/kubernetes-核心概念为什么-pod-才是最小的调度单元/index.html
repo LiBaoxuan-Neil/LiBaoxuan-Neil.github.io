@@ -1,24 +1,279 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:site_name" content="Fragments of Logic"><meta property="og:type" content="article"><meta property="og:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png"><meta property="twitter:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png"><meta name=title content="Kubernetes 核心概念：为什么 Pod 才是最小的调度单元"><meta property="og:title" content="Kubernetes 核心概念：为什么 Pod 才是最小的调度单元"><meta property="twitter:title" content="Kubernetes 核心概念：为什么 Pod 才是最小的调度单元"><meta name=description content="从容器的本质出发，讲清 Pod 的设计动机、共享与隔离边界、生命周期相位、调度器两阶段流程、kubelet 的落地过程，以及 requests/limits、QoS、亲和性、优雅终止这些真正影响线上稳定性的工程细节。"><meta property="og:description" content="从容器的本质出发，讲清 Pod 的设计动机、共享与隔离边界、生命周期相位、调度器两阶段流程、kubelet 的落地过程，以及 requests/limits、QoS、亲和性、优雅终止这些真正影响线上稳定性的工程细节。"><meta property="twitter:description" content="从容器的本质出发，讲清 Pod 的设计动机、共享与隔离边界、生命周期相位、调度器两阶段流程、kubelet 的落地过程，以及 requests/limits、QoS、亲和性、优雅终止这些真正影响线上稳定性的工程细节。"><meta property="og:url" content="https://libaoxuan-neil.github.io/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/"><meta property="twitter:card" content="summary"><meta name=keyword content><link rel="shortcut icon" href=/img/favicon.ico><title>Kubernetes 核心概念：为什么 Pod 才是最小的调度单元 | Where Code Meets Contemplation</title><link rel=canonical href=/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/><link rel=stylesheet href=/css/bootstrap.min.css><link rel=stylesheet href=/css/hugo-theme-cleanwhite.min.css><link rel=stylesheet href=/css/zanshang.min.css><link rel=stylesheet href=/css/font-awesome.all.min.css><script src=/js/jquery.min.js></script><script src=/js/bootstrap.min.js></script><script src=/js/hux-blog.min.js></script><script src=/js/lazysizes.min.js></script></head><nav class="navbar navbar-default navbar-custom navbar-fixed-top"><div class=container-fluid><div class="navbar-header page-scroll"><button type=button class=navbar-toggle>
-<span class=sr-only>Toggle navigation</span>
-<span class=icon-bar></span>
-<span class=icon-bar></span>
-<span class=icon-bar></span>
-</button>
-<a class=navbar-brand href=/>Fragments of Logic</a></div><div id=huxblog_navbar><div class=navbar-collapse><ul class="nav navbar-nav navbar-right"><li><a href=/>All Posts</a></li><li><a href=/archive//>ARCHIVE</a></li><li><a href=/about//>ABOUT</a></li><li><a href=/search><i class="fa fa-search"></i></a></li></ul></div></div></div></nav><script>var $body=document.body,$toggle=document.querySelector(".navbar-toggle"),$navbar=document.querySelector("#huxblog_navbar"),$collapse=document.querySelector(".navbar-collapse");$toggle.addEventListener("click",handleMagic);function handleMagic(){$navbar.className.indexOf("in")>0?($navbar.className=" ",setTimeout(function(){$navbar.className.indexOf("in")<0&&($collapse.style.height="0px")},400)):($collapse.style.height="auto",$navbar.className+=" in")}</script><style type=text/css>header.intro-header{background-image:url(/img/downloaded-image.png)}</style><header class=intro-header><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><div class=post-heading><div class=tags><a class=tag href=/tags/kubernetes title=Kubernetes>Kubernetes
-</a><a class=tag href=/tags/pod title=Pod>Pod
-</a><a class=tag href=/tags/%E4%BA%91%E5%8E%9F%E7%94%9F title=云原生>云原生
-</a><a class=tag href=/tags/%E8%B0%83%E5%BA%A6 title=调度>调度</a></div><h1>Kubernetes 核心概念：为什么 Pod 才是最小的调度单元</h1><h2 class=subheading></h2><span class=meta>Posted by
-LiBaoxuan
-on
-Wednesday, September 2, 2026</span></div></div></div></div></header><article><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2
-col-md-10 col-md-offset-1
-post-container"><p>刚接触 Kubernetes 的人，几乎都会卡在同一个地方：</p><blockquote><p>容器已经是一个完整的封装单元了，为什么 Kubernetes 还要在它上面再包一层 Pod？而且这层 Pod 还看不到任何实体进程。</p></blockquote><p>这个问题值得认真回答，因为它直接决定了你怎么写 YAML、怎么排障、怎么理解调度。这篇文章就从"容器到底是什么"开始，一路讲到调度器内部的两阶段流程和线上真正会踩的坑。</p><h2 id=一先回到容器本身它到底是什么>一、先回到容器本身：它到底是什么</h2><p>很多人的心智模型里，容器是"轻量级的虚拟机"。这个比喻方便，但它是错的，而且会一路误导你对 Pod 的理解。</p><p><strong>容器不是虚拟机，容器本质上就是宿主机上的一个进程。</strong> 只不过这个进程被三种内核机制包装过：</p><ul><li><strong>Namespace</strong>：做"视图隔离"。让这个进程以为自己独享 PID、网络、挂载点、主机名等资源。不同的 namespace 决定了你能"看到"什么。</li><li><strong>Cgroups</strong>：做"资源限制"。限制这个进程能吃多少 CPU、内存、IO。</li><li><strong>rootfs / 镜像分层</strong>：做"文件系统隔离"。让这个进程看到的是镜像里的文件，而不是宿主机的文件。</li></ul><p>注意这个模型的隐含结论：<strong>一个容器，本质上是一个"进程视角"的东西。</strong></p><p>这就带来了一个现实矛盾。真实的业务应用很少是单进程的，它通常长这样：</p><pre tabindex=0><code>一个典型的 Web 应用节点，实际需要跑在一起的东西：
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Fragments of Logic">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png">
+    <meta property="twitter:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png" />
+    
+
+    
+    <meta name="title" content="Kubernetes 核心概念：为什么 Pod 才是最小的调度单元" />
+    <meta property="og:title" content="Kubernetes 核心概念：为什么 Pod 才是最小的调度单元" />
+    <meta property="twitter:title" content="Kubernetes 核心概念：为什么 Pod 才是最小的调度单元" />
+    
+
+    
+    <meta name="description" content="从容器的本质出发，讲清 Pod 的设计动机、共享与隔离边界、生命周期相位、调度器两阶段流程、kubelet 的落地过程，以及 requests/limits、QoS、亲和性、优雅终止这些真正影响线上稳定性的工程细节。">
+    <meta property="og:description" content="从容器的本质出发，讲清 Pod 的设计动机、共享与隔离边界、生命周期相位、调度器两阶段流程、kubelet 的落地过程，以及 requests/limits、QoS、亲和性、优雅终止这些真正影响线上稳定性的工程细节。" />
+    <meta property="twitter:description" content="从容器的本质出发，讲清 Pod 的设计动机、共享与隔离边界、生命周期相位、调度器两阶段流程、kubelet 的落地过程，以及 requests/limits、QoS、亲和性、优雅终止这些真正影响线上稳定性的工程细节。" />
+    
+
+    <meta property="og:url" content="https://libaoxuan-neil.github.io/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/" />
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Kubernetes 核心概念：为什么 Pod 才是最小的调度单元 | Where Code Meets Contemplation</title>
+
+    <link rel="canonical" href="/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/">
+
+    
+
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.min.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Fragments of Logic</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/about//">ABOUT</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/img/downloaded-image.png')
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/kubernetes" title="Kubernetes">
+                            Kubernetes
+                        </a>
+                        
+                        <a class="tag" href="/tags/pod" title="Pod">
+                            Pod
+                        </a>
+                        
+                        <a class="tag" href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
+                            云原生
+                        </a>
+                        
+                        <a class="tag" href="/tags/%E8%B0%83%E5%BA%A6" title="调度">
+                            调度
+                        </a>
+                        
+                    </div>
+                    <h1>Kubernetes 核心概念：为什么 Pod 才是最小的调度单元</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                LiBaoxuan
+                             
+                            on 
+                            Wednesday, September 2, 2026
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>刚接触 Kubernetes 的人，几乎都会卡在同一个地方：</p>
+<blockquote>
+<p>容器已经是一个完整的封装单元了，为什么 Kubernetes 还要在它上面再包一层 Pod？而且这层 Pod 还看不到任何实体进程。</p>
+</blockquote>
+<p>这个问题值得认真回答，因为它直接决定了你怎么写 YAML、怎么排障、怎么理解调度。这篇文章就从&quot;容器到底是什么&quot;开始，一路讲到调度器内部的两阶段流程和线上真正会踩的坑。</p>
+<h2 id="一先回到容器本身它到底是什么">一、先回到容器本身：它到底是什么</h2>
+<p>很多人的心智模型里，容器是&quot;轻量级的虚拟机&quot;。这个比喻方便，但它是错的，而且会一路误导你对 Pod 的理解。</p>
+<p><strong>容器不是虚拟机，容器本质上就是宿主机上的一个进程。</strong> 只不过这个进程被三种内核机制包装过：</p>
+<ul>
+<li><strong>Namespace</strong>：做&quot;视图隔离&quot;。让这个进程以为自己独享 PID、网络、挂载点、主机名等资源。不同的 namespace 决定了你能&quot;看到&quot;什么。</li>
+<li><strong>Cgroups</strong>：做&quot;资源限制&quot;。限制这个进程能吃多少 CPU、内存、IO。</li>
+<li><strong>rootfs / 镜像分层</strong>：做&quot;文件系统隔离&quot;。让这个进程看到的是镜像里的文件，而不是宿主机的文件。</li>
+</ul>
+<p>注意这个模型的隐含结论：<strong>一个容器，本质上是一个&quot;进程视角&quot;的东西。</strong></p>
+<p>这就带来了一个现实矛盾。真实的业务应用很少是单进程的，它通常长这样：</p>
+<pre tabindex="0"><code>一个典型的 Web 应用节点，实际需要跑在一起的东西：
 ├── app           主业务进程（Java / Go / Node）
 ├── log-agent     采集 stdout 与业务日志，推送到 ES / Loki
 ├── config-sync   监听配置中心，热更新本地配置文件
 ├── proxy         服务网格数据面（Envoy / Linkerd proxy）
 └── local-cache   本地缓存或 Unix Domain Socket 代理
-</code></pre><p>这些进程之间存在一种**&ldquo;超亲密关系&rdquo;**（Kubernetes 官方的说法是 intimate relationship）：</p><ol><li>它们<strong>必须</strong>调度到同一台机器上，否则一切免谈；</li><li>它们需要通过 <code>localhost</code> 或 Unix Domain Socket 通信，走网络栈的开销不可接受；</li><li>它们需要共享某些目录（比如日志目录、配置文件目录）；</li><li>它们需要一起生、一起死，生命周期必须严格对齐。</li></ol><p>如果调度单元是容器，那调度器会把这 5 个进程当成 5 个独立个体，各自挑节点——超亲密关系当场崩塌。<code>log-agent</code> 跑在节点 A，<code>app</code> 跑在节点 B，日志采集直接失效。</p><p><strong>Pod 就是为了解决这个问题而生的抽象。</strong></p><h2 id=二pod-是什么一台逻辑主机>二、Pod 是什么：一台"逻辑主机"</h2><p>Pod 不是一个真实存在的进程，它是 Kubernetes 的<strong>原子调度单位</strong>：一组（一个或多个）共享上下文的容器的组合体。</p><p>一个更好用的心智模型是：</p><table><thead><tr><th>传统世界</th><th>Kubernetes 世界</th></tr></thead><tbody><tr><td>物理机 / 虚拟机</td><td><strong>Pod</strong></td></tr><tr><td>机器上跑的进程组</td><td><strong>Pod 里的容器</strong></td></tr></tbody></table><p>所以那句经典说法是这么来的：<em>&ldquo;Pod 是一台逻辑主机，容器是这台主机上的进程。&rdquo;</em></p><h3 id=21-pod-是怎么做到共享的pause-容器>2.1 Pod 是怎么做到"共享"的：pause 容器</h3><p>这是最关键、也最少被讲清楚的一环。</p><p>Kubernetes 并不直接创建你的业务容器。它先创建一个特殊的沙箱容器，也就是常说的 <strong>pause 容器（infra container / sandbox）</strong>。这个容器做的事情极其简单——拉取一个几百 KB 的极简镜像，然后执行一段代码，让进程永远 <code>pause()</code> 住。</p><p>它的唯一职责是：<strong>抢先占住 Pod 的 Network namespace 和 UTS namespace，然后什么都不干。</strong></p><pre tabindex=0><code>节点上实际发生的事情：
+</code></pre><p>这些进程之间存在一种**&ldquo;超亲密关系&rdquo;**（Kubernetes 官方的说法是 intimate relationship）：</p>
+<ol>
+<li>它们<strong>必须</strong>调度到同一台机器上，否则一切免谈；</li>
+<li>它们需要通过 <code>localhost</code> 或 Unix Domain Socket 通信，走网络栈的开销不可接受；</li>
+<li>它们需要共享某些目录（比如日志目录、配置文件目录）；</li>
+<li>它们需要一起生、一起死，生命周期必须严格对齐。</li>
+</ol>
+<p>如果调度单元是容器，那调度器会把这 5 个进程当成 5 个独立个体，各自挑节点——超亲密关系当场崩塌。<code>log-agent</code> 跑在节点 A，<code>app</code> 跑在节点 B，日志采集直接失效。</p>
+<p><strong>Pod 就是为了解决这个问题而生的抽象。</strong></p>
+<h2 id="二pod-是什么一台逻辑主机">二、Pod 是什么：一台&quot;逻辑主机&quot;</h2>
+<p>Pod 不是一个真实存在的进程，它是 Kubernetes 的<strong>原子调度单位</strong>：一组（一个或多个）共享上下文的容器的组合体。</p>
+<p>一个更好用的心智模型是：</p>
+<table>
+  <thead>
+      <tr>
+          <th>传统世界</th>
+          <th>Kubernetes 世界</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>物理机 / 虚拟机</td>
+          <td><strong>Pod</strong></td>
+      </tr>
+      <tr>
+          <td>机器上跑的进程组</td>
+          <td><strong>Pod 里的容器</strong></td>
+      </tr>
+  </tbody>
+</table>
+<p>所以那句经典说法是这么来的：<em>&ldquo;Pod 是一台逻辑主机，容器是这台主机上的进程。&rdquo;</em></p>
+<h3 id="21-pod-是怎么做到共享的pause-容器">2.1 Pod 是怎么做到&quot;共享&quot;的：pause 容器</h3>
+<p>这是最关键、也最少被讲清楚的一环。</p>
+<p>Kubernetes 并不直接创建你的业务容器。它先创建一个特殊的沙箱容器，也就是常说的 <strong>pause 容器（infra container / sandbox）</strong>。这个容器做的事情极其简单——拉取一个几百 KB 的极简镜像，然后执行一段代码，让进程永远 <code>pause()</code> 住。</p>
+<p>它的唯一职责是：<strong>抢先占住 Pod 的 Network namespace 和 UTS namespace，然后什么都不干。</strong></p>
+<pre tabindex="0"><code>节点上实际发生的事情：
 
   Pod Sandbox (pause)
   ├── 持有 net ns  ←───────────┐
@@ -31,58 +286,171 @@ post-container"><p>刚接触 Kubernetes 的人，几乎都会卡在同一个地�
   └──────────────┴────────────────┴──────────────┘
          ↑                ↑               ↑
          └──── 共享同一个 Pod IP 与端口空间 ────┘
-</code></pre><p>后续创建的业务容器，不是自己新建 namespace，而是通过 <code>setns()</code> <strong>加入</strong> pause 容器已经持有的那套 namespace。</p><p>这就解释了很多现象：</p><ul><li><strong>为什么 Pod 里的内容器能共享同一个 IP？</strong> 因为它们在同一个 net namespace 里。</li><li><strong>为什么容器之间能用 <code>localhost</code> 互通？</strong> 因为 loopback 网卡在共享的 net namespace 里。</li><li><strong>为什么同一个 Pod 里两个容器不能绑定同一个端口？</strong> 因为它们共享同一个端口空间，冲突是真冲突，不是"隔离了所以看不见"。</li><li><strong>为什么容器 CrashRestart 之后 Pod IP 不变？</strong> 因为 net namespace 由 pause 容器持有，业务容器挂了 namespace 还在。</li></ul><p>pause 容器还有第二个作用：当开启 <code>shareProcessNamespace: true</code> 时，它作为 PID 1 承担<strong>回收僵尸进程</strong>的职责。</p><h3 id=22-pod-内到底共享了什么没共享什么>2.2 Pod 内到底共享了什么，没共享什么</h3><p>这是面试和排障的高频考点，也是写多容器 Pod 时最容易想当然的地方：</p><table><thead><tr><th>维度</th><th>默认行为</th><th>说明</th></tr></thead><tbody><tr><td><strong>Network namespace</strong></td><td>✅ 共享</td><td>同一个 Pod IP、同一个端口空间、<code>localhost</code> 互通</td></tr><tr><td><strong>UTS namespace</strong></td><td>✅ 共享</td><td>同一个 hostname，容器里 <code>hostname</code> 命令结果一致</td></tr><tr><td><strong>Volume</strong></td><td>✅ 通过声明共享</td><td>每个容器各自把同一个卷挂载到自己 mount namespace 的不同路径</td></tr><tr><td><strong>Mount namespace</strong></td><td>❌ 隔离</td><td>每个容器有自己的根文件系统和镜像只读层，文件互不可见</td></tr><tr><td><strong>PID namespace</strong></td><td>❌ 隔离（默认）</td><td>默认互相 <code>ps</code> 不到；<code>spec.shareProcessNamespace: true</code> 可打开</td></tr><tr><td><strong>IPC namespace</strong></td><td>⚠️ 依赖运行时</td><td>行为不保证，跨容器共享内存请显式用 <code>emptyDir</code> + <code>medium: Memory</code></td></tr></tbody></table><p>这里有个非常常见的误区：<strong>以为 Pod 里容器共享文件系统。</strong> 不共享。它们只是可以把同一个 Volume 挂到各自不同的路径上：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ff79c6>apiVersion</span>: v1
-</span></span><span style=display:flex><span><span style=color:#ff79c6>kind</span>: Pod
-</span></span><span style=display:flex><span><span style=color:#ff79c6>metadata</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>name</span>: web-with-log-agent
-</span></span><span style=display:flex><span><span style=color:#ff79c6>spec</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>volumes</span>:
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: app-logs
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>emptyDir</span>:
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>sizeLimit</span>: 1Gi   <span style=color:#6272a4># 生产环境务必设置，否则可能打爆节点磁盘触发 DiskPressure</span>
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: shared-cache
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>emptyDir</span>:
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>medium</span>: Memory   <span style=color:#6272a4># tmpfs，用于跨容器共享内存</span>
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>sizeLimit</span>: 256Mi
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>containers</span>:
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: app
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>image</span>: myapp:1.0
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>volumeMounts</span>:
-</span></span><span style=display:flex><span>        - <span style=color:#ff79c6>name</span>: app-logs
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>mountPath</span>: /var/log/app      <span style=color:#6272a4># 应用写日志到这里</span>
-</span></span><span style=display:flex><span>        - <span style=color:#ff79c6>name</span>: shared-cache
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>mountPath</span>: /dev/shm/cache
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: log-agent
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>image</span>: fluent-bit:3.2
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>volumeMounts</span>:
-</span></span><span style=display:flex><span>        - <span style=color:#ff79c6>name</span>: app-logs
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>mountPath</span>: /data/log         <span style=color:#6272a4># 采集器从&#34;另一个路径&#34;读到同一份数据</span>
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>readOnly</span>: <span style=color:#ff79c6>true</span>
-</span></span></code></pre></div><p>注意 <code>mountPath</code> 不同但底层是同一个目录——这才是 Pod 内文件共享的正确理解方式。</p><h3 id=23-一个最小可用的-pod>2.3 一个最小可用的 Pod</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ff79c6>apiVersion</span>: v1
-</span></span><span style=display:flex><span><span style=color:#ff79c6>kind</span>: Pod
-</span></span><span style=display:flex><span><span style=color:#ff79c6>metadata</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>name</span>: nginx-minimal
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>labels</span>:
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>app</span>: nginx
-</span></span><span style=display:flex><span><span style=color:#ff79c6>spec</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>containers</span>:
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: nginx
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>image</span>: nginx:1.27
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>ports</span>:
-</span></span><span style=display:flex><span>        - <span style=color:#ff79c6>containerPort</span>: <span style=color:#bd93f9>80</span>
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>resources</span>:
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>requests</span>:
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>cpu</span>: 100m
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>memory</span>: 128Mi
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>limits</span>:
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>cpu</span>: 500m
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>memory</span>: 256Mi
-</span></span></code></pre></div><p>但请注意：<strong>生产环境几乎不要直接创建裸 Pod</strong>，原因见第六节。</p><h2 id=三pod-的生命周期相位状态与优雅终止>三、Pod 的生命周期：相位、状态与优雅终止</h2><h3 id=31-相位-phase一个很粗的摘要>3.1 相位 Phase：一个"很粗的摘要"</h3><p>Pod 有 5 个相位，但它们的粒度非常粗，<strong>排障时几乎不能只靠 phase</strong>：</p><table><thead><tr><th>Phase</th><th>含义</th><th>什么时候出现</th></tr></thead><tbody><tr><td><strong>Pending</strong></td><td>已被接受，但还没跑起来</td><td>正在调度 / 正在拉镜像 / PVC 未绑定</td></tr><tr><td><strong>Running</strong></td><td>已绑定到节点，至少有一个容器在跑</td><td>不代表服务可用！可能 readiness 还没过</td></tr><tr><td><strong>Succeeded</strong></td><td>所有容器成功终止，且不会再重启</td><td>Job / CronJob 正常完成</td></tr><tr><td><strong>Failed</strong></td><td>至少一个容器以非 0 状态终止，且不会再重启</td><td>Job 失败、容器启动即崩</td></tr><tr><td><strong>Unknown</strong></td><td>拿不到 Pod 状态</td><td>通常是 kubelet 与 API Server 通信异常，或节点失联</td></tr></tbody></table><p><strong>关键提醒：<code>Running</code> ≠ 可用。</strong> 容器起来了但 <code>readinessProbe</code> 一直失败，Pod 依然是 <code>Running</code>，却一个流量都接不到。真正排障要看 <code>Conditions</code> 和容器状态。</p><h3 id=32-真正该看的是-conditions>3.2 真正该看的是 Conditions</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>kubectl describe pod &lt;pod-name&gt;
-</span></span></code></pre></div><p>重点关注这几种 condition：</p><ul><li><code>PodScheduled</code>：调度器是否成功给它找到了节点。为 <code>False</code> 且 <code>reason: Unschedulable</code> 就是调度失败。</li><li><code>Initialized</code>：所有 init 容器是否执行完毕。</li><li><code>ContainersReady</code>：所有业务容器是否就绪。</li><li><code>Ready</code>：Pod 是否可以接流量（= <code>ContainersReady</code> + readiness 探针通过）。</li></ul><h3 id=33-重启策略-restartpolicy>3.3 重启策略 restartPolicy</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ff79c6>spec</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>restartPolicy</span>: Always    <span style=color:#6272a4># 默认，Always / OnFailure / Never</span>
-</span></span></code></pre></div><ul><li><code>Always</code>：<strong>默认</strong>。容器无论以什么状态退出都重启。注意它由 kubelet 负责，<strong>重启是在原节点上原地重启，不是重新调度</strong>。</li><li><code>OnFailure</code>：只有非 0 退出才重启。Job 场景常用。</li><li><code>Never</code>：从不重启。</li></ul><p>这里有个容易忽略的点：<strong><code>restartPolicy</code> 是 Pod 级别的，对 Pod 内所有容器生效，而且不能给单个容器单独设置</strong>（原生 Sidecar 是唯一的例外情况）。</p><h3 id=34-优雅终止的完整时序>3.4 优雅终止的完整时序</h3><p>这是线上 502 的头号来源，值得逐帧拆开看：</p><pre tabindex=0><code>1. 用户执行 kubectl delete pod / Deployment 滚动更新
+</code></pre><p>后续创建的业务容器，不是自己新建 namespace，而是通过 <code>setns()</code> <strong>加入</strong> pause 容器已经持有的那套 namespace。</p>
+<p>这就解释了很多现象：</p>
+<ul>
+<li><strong>为什么 Pod 里的内容器能共享同一个 IP？</strong> 因为它们在同一个 net namespace 里。</li>
+<li><strong>为什么容器之间能用 <code>localhost</code> 互通？</strong> 因为 loopback 网卡在共享的 net namespace 里。</li>
+<li><strong>为什么同一个 Pod 里两个容器不能绑定同一个端口？</strong> 因为它们共享同一个端口空间，冲突是真冲突，不是&quot;隔离了所以看不见&quot;。</li>
+<li><strong>为什么容器 CrashRestart 之后 Pod IP 不变？</strong> 因为 net namespace 由 pause 容器持有，业务容器挂了 namespace 还在。</li>
+</ul>
+<p>pause 容器还有第二个作用：当开启 <code>shareProcessNamespace: true</code> 时，它作为 PID 1 承担<strong>回收僵尸进程</strong>的职责。</p>
+<h3 id="22-pod-内到底共享了什么没共享什么">2.2 Pod 内到底共享了什么，没共享什么</h3>
+<p>这是面试和排障的高频考点，也是写多容器 Pod 时最容易想当然的地方：</p>
+<table>
+  <thead>
+      <tr>
+          <th>维度</th>
+          <th>默认行为</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Network namespace</strong></td>
+          <td>✅ 共享</td>
+          <td>同一个 Pod IP、同一个端口空间、<code>localhost</code> 互通</td>
+      </tr>
+      <tr>
+          <td><strong>UTS namespace</strong></td>
+          <td>✅ 共享</td>
+          <td>同一个 hostname，容器里 <code>hostname</code> 命令结果一致</td>
+      </tr>
+      <tr>
+          <td><strong>Volume</strong></td>
+          <td>✅ 通过声明共享</td>
+          <td>每个容器各自把同一个卷挂载到自己 mount namespace 的不同路径</td>
+      </tr>
+      <tr>
+          <td><strong>Mount namespace</strong></td>
+          <td>❌ 隔离</td>
+          <td>每个容器有自己的根文件系统和镜像只读层，文件互不可见</td>
+      </tr>
+      <tr>
+          <td><strong>PID namespace</strong></td>
+          <td>❌ 隔离（默认）</td>
+          <td>默认互相 <code>ps</code> 不到；<code>spec.shareProcessNamespace: true</code> 可打开</td>
+      </tr>
+      <tr>
+          <td><strong>IPC namespace</strong></td>
+          <td>⚠️ 依赖运行时</td>
+          <td>行为不保证，跨容器共享内存请显式用 <code>emptyDir</code> + <code>medium: Memory</code></td>
+      </tr>
+  </tbody>
+</table>
+<p>这里有个非常常见的误区：<strong>以为 Pod 里容器共享文件系统。</strong> 不共享。它们只是可以把同一个 Volume 挂到各自不同的路径上：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">apiVersion</span>: v1
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">kind</span>: Pod
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">metadata</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">name</span>: web-with-log-agent
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">volumes</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: app-logs
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">emptyDir</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">sizeLimit</span>: 1Gi   <span style="color:#6272a4"># 生产环境务必设置，否则可能打爆节点磁盘触发 DiskPressure</span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: shared-cache
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">emptyDir</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">medium</span>: Memory   <span style="color:#6272a4"># tmpfs，用于跨容器共享内存</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">sizeLimit</span>: 256Mi
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">containers</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: app
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">image</span>: myapp:1.0
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">volumeMounts</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#ff79c6">name</span>: app-logs
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">mountPath</span>: /var/log/app      <span style="color:#6272a4"># 应用写日志到这里</span>
+</span></span><span style="display:flex;"><span>        - <span style="color:#ff79c6">name</span>: shared-cache
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">mountPath</span>: /dev/shm/cache
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: log-agent
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">image</span>: fluent-bit:3.2
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">volumeMounts</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#ff79c6">name</span>: app-logs
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">mountPath</span>: /data/log         <span style="color:#6272a4"># 采集器从&#34;另一个路径&#34;读到同一份数据</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">readOnly</span>: <span style="color:#ff79c6">true</span>
+</span></span></code></pre></div><p>注意 <code>mountPath</code> 不同但底层是同一个目录——这才是 Pod 内文件共享的正确理解方式。</p>
+<h3 id="23-一个最小可用的-pod">2.3 一个最小可用的 Pod</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">apiVersion</span>: v1
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">kind</span>: Pod
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">metadata</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">name</span>: nginx-minimal
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">labels</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">app</span>: nginx
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">containers</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: nginx
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">image</span>: nginx:1.27
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">ports</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#ff79c6">containerPort</span>: <span style="color:#bd93f9">80</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">resources</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">requests</span>:
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">cpu</span>: 100m
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">memory</span>: 128Mi
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">limits</span>:
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">cpu</span>: 500m
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">memory</span>: 256Mi
+</span></span></code></pre></div><p>但请注意：<strong>生产环境几乎不要直接创建裸 Pod</strong>，原因见第六节。</p>
+<h2 id="三pod-的生命周期相位状态与优雅终止">三、Pod 的生命周期：相位、状态与优雅终止</h2>
+<h3 id="31-相位-phase一个很粗的摘要">3.1 相位 Phase：一个&quot;很粗的摘要&quot;</h3>
+<p>Pod 有 5 个相位，但它们的粒度非常粗，<strong>排障时几乎不能只靠 phase</strong>：</p>
+<table>
+  <thead>
+      <tr>
+          <th>Phase</th>
+          <th>含义</th>
+          <th>什么时候出现</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Pending</strong></td>
+          <td>已被接受，但还没跑起来</td>
+          <td>正在调度 / 正在拉镜像 / PVC 未绑定</td>
+      </tr>
+      <tr>
+          <td><strong>Running</strong></td>
+          <td>已绑定到节点，至少有一个容器在跑</td>
+          <td>不代表服务可用！可能 readiness 还没过</td>
+      </tr>
+      <tr>
+          <td><strong>Succeeded</strong></td>
+          <td>所有容器成功终止，且不会再重启</td>
+          <td>Job / CronJob 正常完成</td>
+      </tr>
+      <tr>
+          <td><strong>Failed</strong></td>
+          <td>至少一个容器以非 0 状态终止，且不会再重启</td>
+          <td>Job 失败、容器启动即崩</td>
+      </tr>
+      <tr>
+          <td><strong>Unknown</strong></td>
+          <td>拿不到 Pod 状态</td>
+          <td>通常是 kubelet 与 API Server 通信异常，或节点失联</td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>关键提醒：<code>Running</code> ≠ 可用。</strong> 容器起来了但 <code>readinessProbe</code> 一直失败，Pod 依然是 <code>Running</code>，却一个流量都接不到。真正排障要看 <code>Conditions</code> 和容器状态。</p>
+<h3 id="32-真正该看的是-conditions">3.2 真正该看的是 Conditions</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>kubectl describe pod &lt;pod-name&gt;
+</span></span></code></pre></div><p>重点关注这几种 condition：</p>
+<ul>
+<li><code>PodScheduled</code>：调度器是否成功给它找到了节点。为 <code>False</code> 且 <code>reason: Unschedulable</code> 就是调度失败。</li>
+<li><code>Initialized</code>：所有 init 容器是否执行完毕。</li>
+<li><code>ContainersReady</code>：所有业务容器是否就绪。</li>
+<li><code>Ready</code>：Pod 是否可以接流量（= <code>ContainersReady</code> + readiness 探针通过）。</li>
+</ul>
+<h3 id="33-重启策略-restartpolicy">3.3 重启策略 restartPolicy</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">restartPolicy</span>: Always    <span style="color:#6272a4"># 默认，Always / OnFailure / Never</span>
+</span></span></code></pre></div><ul>
+<li><code>Always</code>：<strong>默认</strong>。容器无论以什么状态退出都重启。注意它由 kubelet 负责，<strong>重启是在原节点上原地重启，不是重新调度</strong>。</li>
+<li><code>OnFailure</code>：只有非 0 退出才重启。Job 场景常用。</li>
+<li><code>Never</code>：从不重启。</li>
+</ul>
+<p>这里有个容易忽略的点：<strong><code>restartPolicy</code> 是 Pod 级别的，对 Pod 内所有容器生效，而且不能给单个容器单独设置</strong>（原生 Sidecar 是唯一的例外情况）。</p>
+<h3 id="34-优雅终止的完整时序">3.4 优雅终止的完整时序</h3>
+<p>这是线上 502 的头号来源，值得逐帧拆开看：</p>
+<pre tabindex="0"><code>1. 用户执行 kubectl delete pod / Deployment 滚动更新
         ↓
 2. API Server 设置 metadata.deletionTimestamp
    + deletionGracePeriodSeconds（默认 30s）
@@ -96,16 +464,21 @@ post-container"><p>刚接触 Kubernetes 的人，几乎都会卡在同一个地�
 6. 等待进程自行退出
         ↓
 7. 宽限期耗尽 → 发送 SIGKILL 强杀
-</code></pre><p><strong>坑在哪？</strong> 第 2 步之后，kubelet 关容器和 Endpoint Controller 摘除 Endpoint、<code>kube-proxy</code> 更新转发规则是<strong>并行异步</strong>的。也就是说：Pod 里的进程已经开始关了，但上游负载均衡器的规则可能还没更新完，新请求照样打进来 → <strong>Connection refused / 502</strong>。</p><p>标准解法是在 <code>preStop</code> 里睡几秒，等规则扩散完成：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ff79c6>spec</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>terminationGracePeriodSeconds</span>: <span style=color:#bd93f9>45</span>   <span style=color:#6272a4># 总宽限期要 &gt; preStop sleep + 应用退出时间</span>
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>containers</span>:
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: app
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>image</span>: myapp:1.0
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>lifecycle</span>:
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>preStop</span>:
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>exec</span>:
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>command</span>: [<span style=color:#f1fa8c>&#34;sh&#34;</span>, <span style=color:#f1fa8c>&#34;-c&#34;</span>, <span style=color:#f1fa8c>&#34;sleep 10&#34;</span>]
-</span></span></code></pre></div><h2 id=四pod-是怎么被调度到节点上的>四、Pod 是怎么被调度到节点上的</h2><p>这是本文的核心。理解这套流程，你就能看懂 90% 的 <code>Pending</code> 问题。</p><h3 id=41-全链路时序谁做了什么>4.1 全链路时序：谁做了什么</h3><pre tabindex=0><code>kubectl apply
+</code></pre><p><strong>坑在哪？</strong> 第 2 步之后，kubelet 关容器和 Endpoint Controller 摘除 Endpoint、<code>kube-proxy</code> 更新转发规则是<strong>并行异步</strong>的。也就是说：Pod 里的进程已经开始关了，但上游负载均衡器的规则可能还没更新完，新请求照样打进来 → <strong>Connection refused / 502</strong>。</p>
+<p>标准解法是在 <code>preStop</code> 里睡几秒，等规则扩散完成：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">terminationGracePeriodSeconds</span>: <span style="color:#bd93f9">45</span>   <span style="color:#6272a4"># 总宽限期要 &gt; preStop sleep + 应用退出时间</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">containers</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: app
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">image</span>: myapp:1.0
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">lifecycle</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">preStop</span>:
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">exec</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">command</span>: [<span style="color:#f1fa8c">&#34;sh&#34;</span>, <span style="color:#f1fa8c">&#34;-c&#34;</span>, <span style="color:#f1fa8c">&#34;sleep 10&#34;</span>]
+</span></span></code></pre></div><h2 id="四pod-是怎么被调度到节点上的">四、Pod 是怎么被调度到节点上的</h2>
+<p>这是本文的核心。理解这套流程，你就能看懂 90% 的 <code>Pending</code> 问题。</p>
+<h3 id="41-全链路时序谁做了什么">4.1 全链路时序：谁做了什么</h3>
+<pre tabindex="0"><code>kubectl apply
     ↓
 API Server：认证 → 鉴权 → 准入控制（Mutating → Validating）
     ↓
@@ -131,110 +504,632 @@ CRI RunPodSandbox → 创建 pause 容器
 拉取镜像 → 创建 init / sidecar 容器 → 创建业务容器
     ↓
 kubelet 上报 status → 更新 Pod 状态
-</code></pre><p><strong>最关键的一句话：调度器从来不去节点上启动任何东西。</strong> 它从头到尾只做一件事——给 Pod 写 <code>spec.nodeName</code>。剩下的全部交给 kubelet。这种"调度器只做决策、kubelet 只做执行"的切分，是 Kubernetes 控制面能水平扩展的根本原因。</p><h3 id=42-调度周期filter-先筛score-再排>4.2 调度周期：Filter 先筛，Score 再排</h3><p>调度周期是<strong>串行</strong>的（一次只处理一个 Pod），分为筛选和打分两阶段：</p><p><strong>第一阶段：Filter（硬约束，一票否决）</strong></p><p>把不合适的节点直接淘汰。常见过滤项：</p><ul><li><code>NodeResourcesFit</code>：节点 <code>allocatable - 已分配 requests</code> 是否放得下这个 Pod（<strong>只看 requests，不看 limits</strong>）</li><li><code>NodeAffinity</code>：<code>nodeSelector</code> 和 <code>nodeAffinity.requiredDuringScheduling</code> 是否匹配</li><li><code>TaintToleration</code>：节点污点是否被 Pod 的 toleration 容忍</li><li><code>NodePorts</code> / hostPort 是否冲突</li><li><code>VolumeBinding</code>：PVC 的拓扑约束（比如某块云盘只能挂载在特定可用区的节点）</li><li><code>PodTopologySpread</code> 的硬约束部分</li></ul><p>全部节点都被淘汰时，进入 <strong>PostFilter</strong>，默认实现是<strong>抢占（Preemption）</strong>：尝试驱逐低优先级 Pod 腾地方。</p><p><strong>第二阶段：Score（软偏好，择优录取）</strong></p><p>给存活下来的候选节点打 0~100 分，取最高分。常见打分插件：</p><ul><li><code>NodeResourcesBalancedAllocation</code>：CPU / 内存分配比例是否均衡</li><li><code>NodeResourcesFit</code> 的 <code>LeastAllocated</code> 策略：优先选资源剩余多的节点（装箱更松散）</li><li><code>ImageLocality</code>：节点上是否已有镜像（省去拉取时间）</li><li><code>InterPodAffinity</code>：Pod 间亲和 / 反亲和的软偏好</li><li><code>PodTopologySpread</code>：跨 zone / 跨节点打散程度</li></ul><p>然后是 <strong>Reserve</strong>（预订节点资源，防止并发调度超卖）→ <strong>Permit</strong>（批准 / 延迟 / 拒绝，gang scheduling 用这里）。</p><h3 id=43-绑定周期真正落子>4.3 绑定周期：真正落子</h3><p><code>Bind</code> 阶段把 <code>nodeName</code> 写回 API Server。这一步是<strong>并发</strong>执行的，可以配置多个 goroutine 并行绑定。</p><h3 id=44-一个反直觉的现象>4.4 一个反直觉的现象</h3><p>调度失败的 Pod 不会立刻重试，而是被放进 <code>UnschedulableQ</code> 队列，<strong>进入指数退避</strong>。只有当集群状态发生变化（新增节点、其他 Pod 被删除释放了资源、PVC 绑定成功）时，它才会被重新挪回 <code>ActiveQ</code> 尝试调度。</p><p>这就是为什么有时你会看到：&ldquo;Pod Pending 卡了很久没人管，突然就好了&rdquo;——因为别的 Pod 释放了资源，触发了重新入队。</p><h2 id=五你写的-yaml-字段如何悄悄改变调度结果>五、你写的 YAML 字段，如何悄悄改变调度结果</h2><h3 id=51-requests-是调度依据limits-是运行时上限>5.1 requests 是调度依据，limits 是运行时上限</h3><p>这是最重要也最常搞混的一条：</p><ul><li><strong>调度器只看 <code>requests</code>，完全不看 <code>limits</code>。</strong></li><li><code>requests</code> 决定 Pod 能被调度到哪（记账用的"预定"）</li><li><code>limits</code> 决定 Pod 运行时被 Cgroups 卡多紧（实际使用的"天花板"）</li></ul><p>一个隐蔽的坑：<strong>只写 <code>limits</code> 不写 <code>requests</code> 时，Kubernetes 会自动把 <code>requests</code> 设置成等于 <code>limits</code></strong>（通过 LimitRange 的默认值或准入控制器）。结果就是你的 Pod 被当成"实打实要吃这么多资源"来调度，节点利用率直接崩。</p><h3 id=52-三个-qos-等级决定了内存紧张时谁先死>5.2 三个 QoS 等级：决定了内存紧张时谁先死</h3><table><thead><tr><th>QoS 等级</th><th>判定条件</th><th>节点资源紧张时的待遇</th></tr></thead><tbody><tr><td><strong>Guaranteed</strong></td><td>每个容器都设置了 CPU/内存的 <code>requests</code> 且 <strong>requests == limits</strong></td><td>最后才被驱逐，稳定性最高</td></tr><tr><td><strong>Burstable</strong></td><td>至少一个容器设置了 requests 或 limits，但不满足 Guaranteed</td><td>中间档，按"超出 requests 的程度"排序淘汰</td></tr><tr><td><strong>BestEffort</strong></td><td>所有容器都没设置任何 requests / limits</td><td><strong>第一个被 OOMKill</strong></td></tr></tbody></table><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#6272a4># Guaranteed：每个容器、每种资源的 requests 都严格等于 limits</span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>resources</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>requests</span>:
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>cpu</span>: <span style=color:#f1fa8c>&#34;1&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>memory</span>: 1Gi
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>limits</span>:
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>cpu</span>: <span style=color:#f1fa8c>&#34;1&#34;</span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>memory</span>: 1Gi
-</span></span></code></pre></div><p><strong>实践建议：</strong> 核心在线服务用 Guaranteed；离线任务、批处理用 BestEffort 或 Burstable。</p><p>关于 CPU limits 有一个进阶话题：CPU 是可压缩资源，超限时会被 CFS 配额节流（throttling），表现为 P99 延迟尖刺而不是直接报错。对延迟敏感的在线服务，业界有"不设 CPU limits、只设 requests"的做法；但完全不设也有风险，需要结合 cpuset 绑核或 CPU Burst 一起用。</p><h3 id=53-亲和性污点与拓扑打散>5.3 亲和性、污点与拓扑打散</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ff79c6>spec</span>:
-</span></span><span style=display:flex><span>  <span style=color:#6272a4># 节点亲和：优先（软）调度到 SSD 节点，但必须（硬）在 amd64 架构</span>
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>affinity</span>:
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>nodeAffinity</span>:
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>requiredDuringSchedulingIgnoredDuringExecution</span>:
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>nodeSelectorTerms</span>:
-</span></span><span style=display:flex><span>          - <span style=color:#ff79c6>matchExpressions</span>:
-</span></span><span style=display:flex><span>              - <span style=color:#ff79c6>key</span>: kubernetes.io/arch
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>operator</span>: In
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>values</span>: [<span style=color:#f1fa8c>&#34;amd64&#34;</span>]
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>preferredDuringSchedulingIgnoredDuringExecution</span>:
-</span></span><span style=display:flex><span>        - <span style=color:#ff79c6>weight</span>: <span style=color:#bd93f9>80</span>
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>preference</span>:
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>matchExpressions</span>:
-</span></span><span style=display:flex><span>              - <span style=color:#ff79c6>key</span>: node.kubernetes.io/disk-type
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>operator</span>: In
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>values</span>: [<span style=color:#f1fa8c>&#34;ssd&#34;</span>]
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#6272a4># Pod 反亲和：尽量不和同类服务挤在同一节点</span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>podAntiAffinity</span>:
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>preferredDuringSchedulingIgnoredDuringExecution</span>:
-</span></span><span style=display:flex><span>        - <span style=color:#ff79c6>weight</span>: <span style=color:#bd93f9>100</span>
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>podAffinityTerm</span>:
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>labelSelector</span>:
-</span></span><span style=display:flex><span>              <span style=color:#ff79c6>matchLabels</span>:
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>app</span>: myapp
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>topologyKey</span>: kubernetes.io/hostname
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>tolerations</span>:
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>key</span>: <span style=color:#f1fa8c>&#34;dedicated&#34;</span>
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>operator</span>: <span style=color:#f1fa8c>&#34;Equal&#34;</span>
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>value</span>: <span style=color:#f1fa8c>&#34;gpu&#34;</span>
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>effect</span>: <span style=color:#f1fa8c>&#34;NoSchedule&#34;</span>
-</span></span></code></pre></div><p>注意 K8s API 命名里那串很长的后缀：</p><ul><li><code>...DuringScheduling...</code>：<strong>调度时</strong>生效</li><li><code>...IgnoredDuringExecution...</code> / <code>...RequiredDuringExecution</code>：<strong>运行时</strong>是否重新检查（目前亲和性基本都是 Ignored，即节点标签变了也不会驱逐已运行的 Pod）</li></ul><h3 id=54-拓扑打散比反亲和更好用>5.4 拓扑打散：比反亲和更好用</h3><p><code>topologySpreadConstraints</code> 是反亲和的现代替代品，能精确控制"每个可用区最多几个副本"：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ff79c6>spec</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>topologySpreadConstraints</span>:
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>maxSkew</span>: <span style=color:#bd93f9>1</span>
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>topologyKey</span>: topology.kubernetes.io/zone
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>whenUnsatisfiable</span>: DoNotSchedule      <span style=color:#6272a4># 硬约束；ScheduleAnyway 为软约束</span>
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>labelSelector</span>:
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>matchLabels</span>:
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>app</span>: myapp
-</span></span></code></pre></div><h3 id=55-优先级抢占与-pdb>5.5 优先级、抢占与 PDB</h3><ul><li><strong>PriorityClass</strong>：数值越大优先级越高。资源不足时，高优先级 Pod 可以抢占（驱逐）低优先级 Pod。</li><li><strong>PodDisruptionBudget（PDB）</strong>：注意它只保护<strong>自愿中断</strong>（如节点排空、<code>kubectl drain</code>、滚动更新），<strong>不保护</strong>硬件故障、OOMKill 这类非自愿中断。</li></ul><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ff79c6>apiVersion</span>: policy/v1
-</span></span><span style=display:flex><span><span style=color:#ff79c6>kind</span>: PodDisruptionBudget
-</span></span><span style=display:flex><span><span style=color:#ff79c6>metadata</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>name</span>: myapp-pdb
-</span></span><span style=display:flex><span><span style=color:#ff79c6>spec</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>minAvailable: 2          # 或 maxUnavailable</span>: <span style=color:#bd93f9>1</span>
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>selector</span>:
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>matchLabels</span>:
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>app</span>: myapp
-</span></span></code></pre></div><h2 id=六工程实践pod-的几个高频陷阱>六、工程实践：Pod 的几个高频陷阱</h2><h3 id=1-裸-pod-没有自愈能力永远用控制器管理>1. 裸 Pod 没有自愈能力，永远用控制器管理</h3><p>直接 <code>kubectl run</code> 或 <code>apply</code> 一个裸 Pod，节点宕机后它<strong>不会</strong>被重新调度到其他节点，Pod 直接消失。生产环境请用 <code>Deployment</code> / <code>StatefulSet</code> / <code>DaemonSet</code> / <code>Job</code>。</p><p>顺带一提，<code>DaemonSet</code> 的 Pod 由 DaemonSet Controller 直接指定 <code>nodeName</code>，<strong>绕过了调度器</strong>（调度器只看 <code>nodeName</code> 为空的 Pod）。新版本里它通常用调度器的 <code>PreBind</code> 或 affinity 方案处理。</p><h3 id=2-pod-的大多数字段是不可变的>2. Pod 的大多数字段是不可变的</h3><p>Pod 创建后，<code>spec.containers[*].image</code>、<code>spec.containers[*].resources</code>（旧版本）、<code>spec.nodeName</code>、<code>spec.volumes</code> 等大量字段不可修改。直接 <code>kubectl edit</code> 会报错。正确做法是改 Deployment 让它滚动更新重建 Pod。</p><blockquote><p>唯一值得记住的例外：从 Kubernetes 1.27 起，<code>InPlacePodVerticalScaling</code> 特性允许在一定条件下<strong>原地修改 CPU / 内存 resources 而不重启容器</strong>（Alpha 阶段，到 1.33 已进入 Beta 并默认开启）。这是 VPA 原地更新模式的基础。</p></blockquote><h3 id=3-init-容器与原生-sidecar>3. init 容器与原生 Sidecar</h3><p><strong>常规 init 容器</strong>：按顺序执行、跑完即退出、全部成功后业务容器才启动。适合做依赖检查、数据预热、配置拉取。</p><p><strong>原生 Sidecar 容器</strong>（KEP-753）：写法是给 init 容器加上 <code>restartPolicy: Always</code>。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#ff79c6>spec</span>:
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>initContainers</span>:
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: logging-sidecar
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>image</span>: fluent-bit:3.2
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>restartPolicy</span>: Always          <span style=color:#6272a4># 关键：标记为原生 Sidecar</span>
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>startupProbe</span>:                  <span style=color:#6272a4># 主容器会等它就绪后才启动</span>
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>httpGet</span>:
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>path</span>: /health
-</span></span><span style=display:flex><span>          <span style=color:#ff79c6>port</span>: <span style=color:#bd93f9>2020</span>
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>periodSeconds</span>: <span style=color:#bd93f9>2</span>
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>failureThreshold</span>: <span style=color:#bd93f9>30</span>
-</span></span><span style=display:flex><span>  <span style=color:#ff79c6>containers</span>:
-</span></span><span style=display:flex><span>    - <span style=color:#ff79c6>name</span>: app
-</span></span><span style=display:flex><span>      <span style=color:#ff79c6>image</span>: myapp:1.0
-</span></span></code></pre></div><p>它解决了三个长期存在的痛点：</p><ol><li><strong>启动顺序确定</strong>：Sidecar 的 startupProbe 通过之后，主容器才开始启动。不用再在应用里写 <code>wait_for_proxy.sh</code>。</li><li><strong>终止顺序确定</strong>：Pod 进入 Terminating 时，主容器先退出，Sidecar <strong>最后</strong>才被终止。不会再出现"主容器还在发最后一批请求，Envoy 已经被杀了"的经典故障。</li><li><strong>Job 不再卡死</strong>：主容器退出后 Sidecar 自动清理，Pod 正常进入 <code>Succeeded</code>。以前 Job 里跑日志 Sidecar 会永远卡在 Running。</li></ol><p>版本情况：<strong>1.28 Alpha → 1.29 Beta（默认开启）→ 1.33 GA（正式稳定，无法关闭）</strong>。</p><h3 id=4-三种探针的职责不要混淆>4. 三种探针的职责不要混淆</h3><table><thead><tr><th>探针</th><th>作用</th><th>失败后果</th></tr></thead><tbody><tr><td><code>startupProbe</code></td><td>慢启动保护，成功前 liveness 不生效</td><td>重启容器</td></tr><tr><td><code>readinessProbe</code></td><td>是否<strong>可以接流量</strong></td><td>从 Service Endpoint 摘除（<strong>不重启</strong>）</td></tr><tr><td><code>livenessProbe</code></td><td>是否<strong>还活着</strong>（死锁检测）</td><td><strong>重启容器</strong></td></tr></tbody></table><p>最重要的一条纪律：<strong><code>livenessProbe</code> 绝不能依赖外部依赖</strong>。数据库抖动时，如果 liveness 探针检查 DB 连接，会导致全集群 Pod 同时被重启，把一次小故障放大成雪崩。外部依赖只能放进 <code>readinessProbe</code>。</p><h3 id=5-退出码速查表>5. 退出码速查表</h3><p>排障时 <code>kubectl describe pod</code> 看 <code>Last State</code> 的 <code>Exit Code</code>：</p><table><thead><tr><th>退出码</th><th>含义</th><th>常见原因</th></tr></thead><tbody><tr><td><strong>0</strong></td><td>正常退出</td><td>Job 完成 / 预期内的终止</td></tr><tr><td><strong>1 / 2</strong></td><td>应用自身错误</td><td>代码异常、配置错误</td></tr><tr><td><strong>125 / 126 / 127</strong></td><td>容器运行时错误</td><td>127 = 找不到命令，通常是 <code>command</code> / <code>args</code> 写错或镜像里没有该二进制</td></tr><tr><td><strong>137</strong></td><td>被 SIGKILL 杀掉</td><td><strong>OOMKilled</strong>（内存超 limits）或宽限期到了被强杀</td></tr><tr><td><strong>143</strong></td><td>收到 SIGTERM</td><td>正常的优雅终止</td></tr></tbody></table><h3 id=6-排障命令速查>6. 排障命令速查</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#6272a4># 调度失败：看 Events，Reason=FailedScheduling 会直接告诉你原因</span>
-</span></span><span style=display:flex><span>kubectl describe pod &lt;pod&gt; | grep -A <span style=color:#bd93f9>20</span> Events
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4># 查看 Pod 没被调度成功的真实原因（资源不足 / 污点 / 亲和性）</span>
-</span></span><span style=display:flex><span>kubectl get events --field-selector <span style=color:#8be9fd;font-style:italic>reason</span><span style=color:#ff79c6>=</span>FailedScheduling --sort-by<span style=color:#ff79c6>=</span>.lastTimestamp
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4># 为什么这个 Pod 在这个节点：看调度器打分明细（需要开启调度器日志）</span>
-</span></span><span style=display:flex><span>kubectl describe pod &lt;pod&gt; | grep -i <span style=color:#f1fa8c>&#34;node:&#34;</span>
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4># 快速看 Pod 卡在哪个 Condition</span>
-</span></span><span style=display:flex><span>kubectl get pod &lt;pod&gt; -o <span style=color:#8be9fd;font-style:italic>jsonpath</span><span style=color:#ff79c6>=</span><span style=color:#f1fa8c>&#39;{range .status.conditions[*]}{.type}={.status} ({.reason}){&#34;\n&#34;}{end}&#39;</span>
-</span></span></code></pre></div><h2 id=七小结pod-的心智模型>七、小结：Pod 的心智模型</h2><p>把这篇文章压缩成三句话：</p><ol><li><p><strong>容器是进程，Pod 是主机，控制器是运维机器人。</strong>
-Pod 把"必须在一起的一组进程"打包成一个不可分割的调度原子，用一个 pause 容器锚定共享的 namespace，用 Volume 打通文件共享，用统一的控制面保证生命周期对齐。</p></li><li><p><strong>调度器只做一件事：给 Pod 选一个节点并写 <code>nodeName</code>。</strong>
-先 Filter 硬筛、再 Score 软排，选不出来就走抢占。剩下的创建、拉镜像、重启、上报状态全是 kubelet 的活。</p></li><li><p><strong>Pod 是"牲畜"不是"宠物"。</strong>
-它随时可能被重建，IP 会变，节点会换。任何需要在 Pod 之间保持稳定寻址的东西，都应该交给 Service、Ingress 或者服务网格，而不是把 IP 写进配置。</p></li></ol><p>理解了 Pod 为什么存在，你写的每一份 YAML 都会变得更合理——因为你知道每个字段最终是在跟调度器、kubelet 还是内核对话。</p><hr><ul class=pager><li class=previous><a href=/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/ data-toggle=tooltip data-placement=top title="深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应">&larr;
-Previous Post</a></li></ul><link href=https://xxx.xxx.com/dist/Artalk.css rel=stylesheet><script src=https://xxx.xxx.com/dist/Artalk.js></script><div id=Comments></div><script>Artalk.init({el:"#Comments",pageKey:"https://libaoxuan-neil.github.io/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/",pageTitle:"Kubernetes 核心概念：为什么 Pod 才是最小的调度单元",server:"https://xxx.xxx.com",site:"xxx blog"})</script></div><div class="col-lg-2 col-lg-offset-0
-visible-lg-block
-sidebar-container
-catalog-container"><div class=side-catalog><hr class="hidden-sm hidden-xs"><h5><a class=catalog-toggle href=#>CATALOG</a></h5><ul class=catalog-body></ul></div></div><div class="col-lg-8 col-lg-offset-2
-col-md-10 col-md-offset-1
-sidebar-container"><section><hr class="hidden-sm hidden-xs"><h5><a href=/tags/>FEATURED TAGS</a></h5><div class=tags><a href=/tags/ai-services title="ai services">ai services
-</a><a href=/tags/api title=api>api
-</a><a href=/tags/chat-completions title="chat completions">chat completions
-</a><a href=/tags/java-ai title="java ai">java ai
-</a><a href=/tags/jvm title=jvm>jvm
-</a><a href=/tags/kubernetes title=kubernetes>kubernetes
-</a><a href=/tags/langchain4j title=langchain4j>langchain4j
-</a><a href=/tags/openai title=openai>openai
-</a><a href=/tags/pod title=pod>pod
-</a><a href=/tags/sse title=sse>sse
-</a><a href=/tags/%E4%BA%91%E5%8E%9F%E7%94%9F title=云原生>云原生
-</a><a href=/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94 title=流式响应>流式响应
-</a><a href=/tags/%E8%B0%83%E5%BA%A6 title=调度>调度</a></div></section></div></div></div></article><footer><div class=container><div class=row><div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1"><ul class="list-inline text-center"><li><a href=mailto:2086965923@qq.com><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
-<i class="fas fa-envelope fa-stack-1x fa-inverse"></i></span></a></li><li><a target=_blank href=https://github.com/LiBaoxuan-Neil><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
-<i class="fab fa-github fa-stack-1x fa-inverse"></i></span></a></li><li><a href rel=alternate type=application/rss+xml title="Fragments of Logic"><span class="fa-stack fa-lg"><i class="fas fa-circle fa-stack-2x"></i>
-<i class="fas fa-rss fa-stack-1x fa-inverse"></i></span></a></li></ul><p class="copyright text-muted">Copyright &copy; Fragments of Logic 2026<br></p></div></div></div></footer><script>function loadAsync(e,t){var s=document,o="script",n=s.createElement(o),i=s.getElementsByTagName(o)[0];n.src=e,t&&n.addEventListener("load",function(e){t(null,e)},!1),i.parentNode.insertBefore(n,i)}</script><script>$("#tag_cloud").length!==0&&loadAsync("/js/jquery.tagcloud.js",function(){$.fn.tagcloud.defaults={color:{start:"#bbbbee",end:"#0085a1"}},$("#tag_cloud a").tagcloud()})</script><script>loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js",function(){var e=document.querySelector("nav");e&&FastClick.attach(e)})</script><script type=text/javascript>function generateCatalog(e){_containerSelector="div.post-container";var t,n,s,o,i,a=$(_containerSelector),r=a.find("h1,h2,h3,h4,h5,h6");return $(e).html(""),r.each(function(){n=$(this).prop("tagName").toLowerCase(),o="#"+$(this).prop("id"),t=$(this).text(),i=$('<a href="'+o+'" rel="nofollow" title="'+t+'">'+t+"</a>"),s=$('<li class="'+n+'_nav"></li>').append(i),$(e).append(s)}),!0}generateCatalog(".catalog-body"),$(".catalog-toggle").click(function(e){e.preventDefault(),$(".side-catalog").toggleClass("fold")}),loadAsync("/js/jquery.nav.js",function(){$(".catalog-body").onePageNav({currentClass:"active",changeHash:!1,easing:"swing",filter:"",scrollSpeed:700,scrollOffset:0,scrollThreshold:.2,begin:null,end:null,scrollChange:null,padding:80})})</script></body></html>
+</code></pre><p><strong>最关键的一句话：调度器从来不去节点上启动任何东西。</strong> 它从头到尾只做一件事——给 Pod 写 <code>spec.nodeName</code>。剩下的全部交给 kubelet。这种&quot;调度器只做决策、kubelet 只做执行&quot;的切分，是 Kubernetes 控制面能水平扩展的根本原因。</p>
+<h3 id="42-调度周期filter-先筛score-再排">4.2 调度周期：Filter 先筛，Score 再排</h3>
+<p>调度周期是<strong>串行</strong>的（一次只处理一个 Pod），分为筛选和打分两阶段：</p>
+<p><strong>第一阶段：Filter（硬约束，一票否决）</strong></p>
+<p>把不合适的节点直接淘汰。常见过滤项：</p>
+<ul>
+<li><code>NodeResourcesFit</code>：节点 <code>allocatable - 已分配 requests</code> 是否放得下这个 Pod（<strong>只看 requests，不看 limits</strong>）</li>
+<li><code>NodeAffinity</code>：<code>nodeSelector</code> 和 <code>nodeAffinity.requiredDuringScheduling</code> 是否匹配</li>
+<li><code>TaintToleration</code>：节点污点是否被 Pod 的 toleration 容忍</li>
+<li><code>NodePorts</code> / hostPort 是否冲突</li>
+<li><code>VolumeBinding</code>：PVC 的拓扑约束（比如某块云盘只能挂载在特定可用区的节点）</li>
+<li><code>PodTopologySpread</code> 的硬约束部分</li>
+</ul>
+<p>全部节点都被淘汰时，进入 <strong>PostFilter</strong>，默认实现是<strong>抢占（Preemption）</strong>：尝试驱逐低优先级 Pod 腾地方。</p>
+<p><strong>第二阶段：Score（软偏好，择优录取）</strong></p>
+<p>给存活下来的候选节点打 0~100 分，取最高分。常见打分插件：</p>
+<ul>
+<li><code>NodeResourcesBalancedAllocation</code>：CPU / 内存分配比例是否均衡</li>
+<li><code>NodeResourcesFit</code> 的 <code>LeastAllocated</code> 策略：优先选资源剩余多的节点（装箱更松散）</li>
+<li><code>ImageLocality</code>：节点上是否已有镜像（省去拉取时间）</li>
+<li><code>InterPodAffinity</code>：Pod 间亲和 / 反亲和的软偏好</li>
+<li><code>PodTopologySpread</code>：跨 zone / 跨节点打散程度</li>
+</ul>
+<p>然后是 <strong>Reserve</strong>（预订节点资源，防止并发调度超卖）→ <strong>Permit</strong>（批准 / 延迟 / 拒绝，gang scheduling 用这里）。</p>
+<h3 id="43-绑定周期真正落子">4.3 绑定周期：真正落子</h3>
+<p><code>Bind</code> 阶段把 <code>nodeName</code> 写回 API Server。这一步是<strong>并发</strong>执行的，可以配置多个 goroutine 并行绑定。</p>
+<h3 id="44-一个反直觉的现象">4.4 一个反直觉的现象</h3>
+<p>调度失败的 Pod 不会立刻重试，而是被放进 <code>UnschedulableQ</code> 队列，<strong>进入指数退避</strong>。只有当集群状态发生变化（新增节点、其他 Pod 被删除释放了资源、PVC 绑定成功）时，它才会被重新挪回 <code>ActiveQ</code> 尝试调度。</p>
+<p>这就是为什么有时你会看到：&ldquo;Pod Pending 卡了很久没人管，突然就好了&rdquo;——因为别的 Pod 释放了资源，触发了重新入队。</p>
+<h2 id="五你写的-yaml-字段如何悄悄改变调度结果">五、你写的 YAML 字段，如何悄悄改变调度结果</h2>
+<h3 id="51-requests-是调度依据limits-是运行时上限">5.1 requests 是调度依据，limits 是运行时上限</h3>
+<p>这是最重要也最常搞混的一条：</p>
+<ul>
+<li><strong>调度器只看 <code>requests</code>，完全不看 <code>limits</code>。</strong></li>
+<li><code>requests</code> 决定 Pod 能被调度到哪（记账用的&quot;预定&quot;）</li>
+<li><code>limits</code> 决定 Pod 运行时被 Cgroups 卡多紧（实际使用的&quot;天花板&quot;）</li>
+</ul>
+<p>一个隐蔽的坑：<strong>只写 <code>limits</code> 不写 <code>requests</code> 时，Kubernetes 会自动把 <code>requests</code> 设置成等于 <code>limits</code></strong>（通过 LimitRange 的默认值或准入控制器）。结果就是你的 Pod 被当成&quot;实打实要吃这么多资源&quot;来调度，节点利用率直接崩。</p>
+<h3 id="52-三个-qos-等级决定了内存紧张时谁先死">5.2 三个 QoS 等级：决定了内存紧张时谁先死</h3>
+<table>
+  <thead>
+      <tr>
+          <th>QoS 等级</th>
+          <th>判定条件</th>
+          <th>节点资源紧张时的待遇</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Guaranteed</strong></td>
+          <td>每个容器都设置了 CPU/内存的 <code>requests</code> 且 <strong>requests == limits</strong></td>
+          <td>最后才被驱逐，稳定性最高</td>
+      </tr>
+      <tr>
+          <td><strong>Burstable</strong></td>
+          <td>至少一个容器设置了 requests 或 limits，但不满足 Guaranteed</td>
+          <td>中间档，按&quot;超出 requests 的程度&quot;排序淘汰</td>
+      </tr>
+      <tr>
+          <td><strong>BestEffort</strong></td>
+          <td>所有容器都没设置任何 requests / limits</td>
+          <td><strong>第一个被 OOMKill</strong></td>
+      </tr>
+  </tbody>
+</table>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#6272a4"># Guaranteed：每个容器、每种资源的 requests 都严格等于 limits</span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">resources</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">requests</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">cpu</span>: <span style="color:#f1fa8c">&#34;1&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">memory</span>: 1Gi
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">limits</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">cpu</span>: <span style="color:#f1fa8c">&#34;1&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">memory</span>: 1Gi
+</span></span></code></pre></div><p><strong>实践建议：</strong> 核心在线服务用 Guaranteed；离线任务、批处理用 BestEffort 或 Burstable。</p>
+<p>关于 CPU limits 有一个进阶话题：CPU 是可压缩资源，超限时会被 CFS 配额节流（throttling），表现为 P99 延迟尖刺而不是直接报错。对延迟敏感的在线服务，业界有&quot;不设 CPU limits、只设 requests&quot;的做法；但完全不设也有风险，需要结合 cpuset 绑核或 CPU Burst 一起用。</p>
+<h3 id="53-亲和性污点与拓扑打散">5.3 亲和性、污点与拓扑打散</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#6272a4"># 节点亲和：优先（软）调度到 SSD 节点，但必须（硬）在 amd64 架构</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">affinity</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">nodeAffinity</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">requiredDuringSchedulingIgnoredDuringExecution</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">nodeSelectorTerms</span>:
+</span></span><span style="display:flex;"><span>          - <span style="color:#ff79c6">matchExpressions</span>:
+</span></span><span style="display:flex;"><span>              - <span style="color:#ff79c6">key</span>: kubernetes.io/arch
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">operator</span>: In
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">values</span>: [<span style="color:#f1fa8c">&#34;amd64&#34;</span>]
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">preferredDuringSchedulingIgnoredDuringExecution</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#ff79c6">weight</span>: <span style="color:#bd93f9">80</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">preference</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">matchExpressions</span>:
+</span></span><span style="display:flex;"><span>              - <span style="color:#ff79c6">key</span>: node.kubernetes.io/disk-type
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">operator</span>: In
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">values</span>: [<span style="color:#f1fa8c">&#34;ssd&#34;</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#6272a4"># Pod 反亲和：尽量不和同类服务挤在同一节点</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">podAntiAffinity</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">preferredDuringSchedulingIgnoredDuringExecution</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#ff79c6">weight</span>: <span style="color:#bd93f9">100</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">podAffinityTerm</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">labelSelector</span>:
+</span></span><span style="display:flex;"><span>              <span style="color:#ff79c6">matchLabels</span>:
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">app</span>: myapp
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">topologyKey</span>: kubernetes.io/hostname
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">tolerations</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">key</span>: <span style="color:#f1fa8c">&#34;dedicated&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">operator</span>: <span style="color:#f1fa8c">&#34;Equal&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">value</span>: <span style="color:#f1fa8c">&#34;gpu&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">effect</span>: <span style="color:#f1fa8c">&#34;NoSchedule&#34;</span>
+</span></span></code></pre></div><p>注意 K8s API 命名里那串很长的后缀：</p>
+<ul>
+<li><code>...DuringScheduling...</code>：<strong>调度时</strong>生效</li>
+<li><code>...IgnoredDuringExecution...</code> / <code>...RequiredDuringExecution</code>：<strong>运行时</strong>是否重新检查（目前亲和性基本都是 Ignored，即节点标签变了也不会驱逐已运行的 Pod）</li>
+</ul>
+<h3 id="54-拓扑打散比反亲和更好用">5.4 拓扑打散：比反亲和更好用</h3>
+<p><code>topologySpreadConstraints</code> 是反亲和的现代替代品，能精确控制&quot;每个可用区最多几个副本&quot;：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">topologySpreadConstraints</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">maxSkew</span>: <span style="color:#bd93f9">1</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">topologyKey</span>: topology.kubernetes.io/zone
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">whenUnsatisfiable</span>: DoNotSchedule      <span style="color:#6272a4"># 硬约束；ScheduleAnyway 为软约束</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">labelSelector</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">matchLabels</span>:
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">app</span>: myapp
+</span></span></code></pre></div><h3 id="55-优先级抢占与-pdb">5.5 优先级、抢占与 PDB</h3>
+<ul>
+<li><strong>PriorityClass</strong>：数值越大优先级越高。资源不足时，高优先级 Pod 可以抢占（驱逐）低优先级 Pod。</li>
+<li><strong>PodDisruptionBudget（PDB）</strong>：注意它只保护<strong>自愿中断</strong>（如节点排空、<code>kubectl drain</code>、滚动更新），<strong>不保护</strong>硬件故障、OOMKill 这类非自愿中断。</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">apiVersion</span>: policy/v1
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">kind</span>: PodDisruptionBudget
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">metadata</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">name</span>: myapp-pdb
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">minAvailable: 2          # 或 maxUnavailable</span>: <span style="color:#bd93f9">1</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">selector</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">matchLabels</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">app</span>: myapp
+</span></span></code></pre></div><h2 id="六工程实践pod-的几个高频陷阱">六、工程实践：Pod 的几个高频陷阱</h2>
+<h3 id="1-裸-pod-没有自愈能力永远用控制器管理">1. 裸 Pod 没有自愈能力，永远用控制器管理</h3>
+<p>直接 <code>kubectl run</code> 或 <code>apply</code> 一个裸 Pod，节点宕机后它<strong>不会</strong>被重新调度到其他节点，Pod 直接消失。生产环境请用 <code>Deployment</code> / <code>StatefulSet</code> / <code>DaemonSet</code> / <code>Job</code>。</p>
+<p>顺带一提，<code>DaemonSet</code> 的 Pod 由 DaemonSet Controller 直接指定 <code>nodeName</code>，<strong>绕过了调度器</strong>（调度器只看 <code>nodeName</code> 为空的 Pod）。新版本里它通常用调度器的 <code>PreBind</code> 或 affinity 方案处理。</p>
+<h3 id="2-pod-的大多数字段是不可变的">2. Pod 的大多数字段是不可变的</h3>
+<p>Pod 创建后，<code>spec.containers[*].image</code>、<code>spec.containers[*].resources</code>（旧版本）、<code>spec.nodeName</code>、<code>spec.volumes</code> 等大量字段不可修改。直接 <code>kubectl edit</code> 会报错。正确做法是改 Deployment 让它滚动更新重建 Pod。</p>
+<blockquote>
+<p>唯一值得记住的例外：从 Kubernetes 1.27 起，<code>InPlacePodVerticalScaling</code> 特性允许在一定条件下<strong>原地修改 CPU / 内存 resources 而不重启容器</strong>（Alpha 阶段，到 1.33 已进入 Beta 并默认开启）。这是 VPA 原地更新模式的基础。</p>
+</blockquote>
+<h3 id="3-init-容器与原生-sidecar">3. init 容器与原生 Sidecar</h3>
+<p><strong>常规 init 容器</strong>：按顺序执行、跑完即退出、全部成功后业务容器才启动。适合做依赖检查、数据预热、配置拉取。</p>
+<p><strong>原生 Sidecar 容器</strong>（KEP-753）：写法是给 init 容器加上 <code>restartPolicy: Always</code>。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ff79c6">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">initContainers</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: logging-sidecar
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">image</span>: fluent-bit:3.2
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">restartPolicy</span>: Always          <span style="color:#6272a4"># 关键：标记为原生 Sidecar</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">startupProbe</span>:                  <span style="color:#6272a4"># 主容器会等它就绪后才启动</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">httpGet</span>:
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">path</span>: /health
+</span></span><span style="display:flex;"><span>          <span style="color:#ff79c6">port</span>: <span style="color:#bd93f9">2020</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">periodSeconds</span>: <span style="color:#bd93f9">2</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">failureThreshold</span>: <span style="color:#bd93f9">30</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ff79c6">containers</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ff79c6">name</span>: app
+</span></span><span style="display:flex;"><span>      <span style="color:#ff79c6">image</span>: myapp:1.0
+</span></span></code></pre></div><p>它解决了三个长期存在的痛点：</p>
+<ol>
+<li><strong>启动顺序确定</strong>：Sidecar 的 startupProbe 通过之后，主容器才开始启动。不用再在应用里写 <code>wait_for_proxy.sh</code>。</li>
+<li><strong>终止顺序确定</strong>：Pod 进入 Terminating 时，主容器先退出，Sidecar <strong>最后</strong>才被终止。不会再出现&quot;主容器还在发最后一批请求，Envoy 已经被杀了&quot;的经典故障。</li>
+<li><strong>Job 不再卡死</strong>：主容器退出后 Sidecar 自动清理，Pod 正常进入 <code>Succeeded</code>。以前 Job 里跑日志 Sidecar 会永远卡在 Running。</li>
+</ol>
+<p>版本情况：<strong>1.28 Alpha → 1.29 Beta（默认开启）→ 1.33 GA（正式稳定，无法关闭）</strong>。</p>
+<h3 id="4-三种探针的职责不要混淆">4. 三种探针的职责不要混淆</h3>
+<table>
+  <thead>
+      <tr>
+          <th>探针</th>
+          <th>作用</th>
+          <th>失败后果</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>startupProbe</code></td>
+          <td>慢启动保护，成功前 liveness 不生效</td>
+          <td>重启容器</td>
+      </tr>
+      <tr>
+          <td><code>readinessProbe</code></td>
+          <td>是否<strong>可以接流量</strong></td>
+          <td>从 Service Endpoint 摘除（<strong>不重启</strong>）</td>
+      </tr>
+      <tr>
+          <td><code>livenessProbe</code></td>
+          <td>是否<strong>还活着</strong>（死锁检测）</td>
+          <td><strong>重启容器</strong></td>
+      </tr>
+  </tbody>
+</table>
+<p>最重要的一条纪律：<strong><code>livenessProbe</code> 绝不能依赖外部依赖</strong>。数据库抖动时，如果 liveness 探针检查 DB 连接，会导致全集群 Pod 同时被重启，把一次小故障放大成雪崩。外部依赖只能放进 <code>readinessProbe</code>。</p>
+<h3 id="5-退出码速查表">5. 退出码速查表</h3>
+<p>排障时 <code>kubectl describe pod</code> 看 <code>Last State</code> 的 <code>Exit Code</code>：</p>
+<table>
+  <thead>
+      <tr>
+          <th>退出码</th>
+          <th>含义</th>
+          <th>常见原因</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>0</strong></td>
+          <td>正常退出</td>
+          <td>Job 完成 / 预期内的终止</td>
+      </tr>
+      <tr>
+          <td><strong>1 / 2</strong></td>
+          <td>应用自身错误</td>
+          <td>代码异常、配置错误</td>
+      </tr>
+      <tr>
+          <td><strong>125 / 126 / 127</strong></td>
+          <td>容器运行时错误</td>
+          <td>127 = 找不到命令，通常是 <code>command</code> / <code>args</code> 写错或镜像里没有该二进制</td>
+      </tr>
+      <tr>
+          <td><strong>137</strong></td>
+          <td>被 SIGKILL 杀掉</td>
+          <td><strong>OOMKilled</strong>（内存超 limits）或宽限期到了被强杀</td>
+      </tr>
+      <tr>
+          <td><strong>143</strong></td>
+          <td>收到 SIGTERM</td>
+          <td>正常的优雅终止</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="6-排障命令速查">6. 排障命令速查</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#6272a4"># 调度失败：看 Events，Reason=FailedScheduling 会直接告诉你原因</span>
+</span></span><span style="display:flex;"><span>kubectl describe pod &lt;pod&gt; | grep -A <span style="color:#bd93f9">20</span> Events
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4"># 查看 Pod 没被调度成功的真实原因（资源不足 / 污点 / 亲和性）</span>
+</span></span><span style="display:flex;"><span>kubectl get events --field-selector <span style="color:#8be9fd;font-style:italic">reason</span><span style="color:#ff79c6">=</span>FailedScheduling --sort-by<span style="color:#ff79c6">=</span>.lastTimestamp
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4"># 为什么这个 Pod 在这个节点：看调度器打分明细（需要开启调度器日志）</span>
+</span></span><span style="display:flex;"><span>kubectl describe pod &lt;pod&gt; | grep -i <span style="color:#f1fa8c">&#34;node:&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4"># 快速看 Pod 卡在哪个 Condition</span>
+</span></span><span style="display:flex;"><span>kubectl get pod &lt;pod&gt; -o <span style="color:#8be9fd;font-style:italic">jsonpath</span><span style="color:#ff79c6">=</span><span style="color:#f1fa8c">&#39;{range .status.conditions[*]}{.type}={.status} ({.reason}){&#34;\n&#34;}{end}&#39;</span>
+</span></span></code></pre></div><h2 id="七小结pod-的心智模型">七、小结：Pod 的心智模型</h2>
+<p>把这篇文章压缩成三句话：</p>
+<ol>
+<li>
+<p><strong>容器是进程，Pod 是主机，控制器是运维机器人。</strong>
+Pod 把&quot;必须在一起的一组进程&quot;打包成一个不可分割的调度原子，用一个 pause 容器锚定共享的 namespace，用 Volume 打通文件共享，用统一的控制面保证生命周期对齐。</p>
+</li>
+<li>
+<p><strong>调度器只做一件事：给 Pod 选一个节点并写 <code>nodeName</code>。</strong>
+先 Filter 硬筛、再 Score 软排，选不出来就走抢占。剩下的创建、拉镜像、重启、上报状态全是 kubelet 的活。</p>
+</li>
+<li>
+<p><strong>Pod 是&quot;牲畜&quot;不是&quot;宠物&quot;。</strong>
+它随时可能被重建，IP 会变，节点会换。任何需要在 Pod 之间保持稳定寻址的东西，都应该交给 Service、Ingress 或者服务网格，而不是把 IP 写进配置。</p>
+</li>
+</ol>
+<p>理解了 Pod 为什么存在，你写的每一份 YAML 都会变得更合理——因为你知道每个字段最终是在跟调度器、kubelet 还是内核对话。</p>
+
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/" data-toggle="tooltip" data-placement="top" title="深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/kubernetes-%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E5%85%A5%E9%97%A8pod-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AF%E4%BB%A5%E8%A2%AB%E8%8A%82%E7%82%B9%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE/" data-toggle="tooltip" data-placement="top" title="Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+
+
+<link href="https://xxx.xxx.com/dist/Artalk.css" rel="stylesheet" />
+<script src="https://xxx.xxx.com/dist/Artalk.js"></script>
+
+
+<div id="Comments"></div>
+
+<script>
+    Artalk.init({
+        el: '#Comments',
+        pageKey: 'https:\/\/libaoxuan-neil.github.io\/post\/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83\/',
+        pageTitle: 'Kubernetes 核心概念：为什么 Pod 才是最小的调度单元',
+        server: 'https:\/\/xxx.xxx.com',
+        site: 'xxx blog',
+    })
+</script>
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+                <section>
+                    <hr class="hidden-sm hidden-xs">
+                    <h5><a href="/tags/">FEATURED TAGS</a></h5>
+                    <div class="tags">
+                        
+                        
+                        
+                        <a href="/tags/ai-services" title="ai services">
+                            ai services
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/api" title="api">
+                            api
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/chat-completions" title="chat completions">
+                            chat completions
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/cni" title="cni">
+                            cni
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/java-ai" title="java ai">
+                            java ai
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/jvm" title="jvm">
+                            jvm
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/kubernetes" title="kubernetes">
+                            kubernetes
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/langchain4j" title="langchain4j">
+                            langchain4j
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/openai" title="openai">
+                            openai
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/pod" title="pod">
+                            pod
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/service" title="service">
+                            service
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/sse" title="sse">
+                            sse
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
+                            云原生
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94" title="流式响应">
+                            流式响应
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E7%BD%91%E7%BB%9C" title="网络">
+                            网络
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E8%B0%83%E5%BA%A6" title="调度">
+                            调度
+                        </a>
+                        
+                        
+                    </div>
+                </section>
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    
+                    <li>
+                        <a href="mailto:2086965923@qq.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/LiBaoxuan-Neil">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Fragments of Logic" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Fragments of Logic 2026
+                    
+                    <br>
+                    
+                    
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow" title="' + t + '">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+</body>
+</html>
