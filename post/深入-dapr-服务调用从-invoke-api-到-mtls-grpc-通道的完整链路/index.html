@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="Fragments of Logic">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png">
+    <meta property="twitter:image" content="https://libaoxuan-neil.github.io//img/downloaded-image.png" />
+    
+
+    
+    <meta name="title" content="深入 Dapr 服务调用：从 invoke API 到 mTLS gRPC 通道的完整链路" />
+    <meta property="og:title" content="深入 Dapr 服务调用：从 invoke API 到 mTLS gRPC 通道的完整链路" />
+    <meta property="twitter:title" content="深入 Dapr 服务调用：从 invoke API 到 mTLS gRPC 通道的完整链路" />
+    
+
+    
+    <meta name="description" content="">
+    <meta property="og:description" content="" />
+    <meta property="twitter:description" content="" />
+    
+
+    <meta property="og:url" content="https://libaoxuan-neil.github.io/post/%E6%B7%B1%E5%85%A5-dapr-%E6%9C%8D%E5%8A%A1%E8%B0%83%E7%94%A8%E4%BB%8E-invoke-api-%E5%88%B0-mtls-grpc-%E9%80%9A%E9%81%93%E7%9A%84%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF/" />
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>深入 Dapr 服务调用：从 invoke API 到 mTLS gRPC 通道的完整链路 | Where Code Meets Contemplation</title>
+
+    <link rel="canonical" href="/post/%E6%B7%B1%E5%85%A5-dapr-%E6%9C%8D%E5%8A%A1%E8%B0%83%E7%94%A8%E4%BB%8E-invoke-api-%E5%88%B0-mtls-grpc-%E9%80%9A%E9%81%93%E7%9A%84%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF/">
+
+    
+
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.min.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    
+    
+    
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Fragments of Logic</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                    
+		    
+                        <li><a href="/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/about//">ABOUT</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+<header class="intro-header" style="background-image: url('/img/downloaded-image.png')">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1 ">
+                <div class="site-heading">
+                    <h1>Fragments of Logic </h1>
+                    
+		    <span class="subheading">Where code meets contemplation.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+            
+            <div class="
+            col-lg-8 col-lg-offset-1
+            col-md-8 col-md-offset-1
+            col-sm-12
+            col-xs-12
+            post-container">
+            
+                <h2 id="一背景服务调用要解决的到底是什么问题">一、背景：服务调用要解决的到底是什么问题</h2>
+<p>在微服务架构里，&ldquo;A 服务调用 B 服务&quot;这件看似简单的事，实际上要同时回答五个问题：</p>
+<ol>
+<li><strong>服务发现</strong>：B 在哪里？有几个实例？实例上下线了怎么办？</li>
+<li><strong>协议标准化</strong>：A 用 HTTP、B 用 gRPC 怎么互通？</li>
+<li><strong>安全</strong>：怎么保证链路加密，怎么确认&quot;你确实是 B 而不是伪装的 B&rdquo;，怎么做方法级授权？</li>
+<li><strong>可靠性</strong>：网络抖动、实例重启、证书轮换导致的瞬时失败怎么办？</li>
+<li><strong>可观测</strong>：一次跨三个服务的调用，出问题时怎么定位是哪一跳慢了？</li>
+</ol>
+<p>传统做法是在每个服务里塞进 SDK：注册中心客户端、负载均衡器、重试库、熔断器、mTLS 配置、tracing 埋点……这些代码与业务无关，却要在每种语言里重复实现一遍，且升级极其痛苦。</p>
+<p>Dapr 的答案是 <strong>sidecar 反向代理</strong>：应用只跟本地 sidecar 说话，跨网络的脏活全部下沉到 sidecar。Dapr 官方文档对这条链路的描述是：</p>
+<blockquote>
+<p>&ldquo;All calls between Dapr sidecars go over gRPC for performance. Only calls between services and Dapr sidecars can be either HTTP or gRPC.&rdquo;</p>
+</blockquote>
+<p>这句话是理解整个实现的钥匙——<strong>应用与 sidecar 之间是 HTTP 或 gRPC 二选一，而 sidecar 与 sidecar 之间永远只有 gRPC</strong>。因此 Dapr 内部只需要维护一套传输实现，所有协议转换都发生在链路的两端。</p>
+<p>本文就沿着这条链路，从 <code>/v1.0/invoke</code> 一路走到目标应用的 socket。</p>
+<h2 id="二整体架构一次调用的分层视角">二、整体架构：一次调用的分层视角</h2>
+<p>先建立整体心智模型。以&quot;App A 通过 HTTP 调用 App B&quot;为例：</p>
+<pre tabindex="0"><code>App A ──HTTP──▶ sidecar A ──gRPC(mTLS)──▶ sidecar B ──HTTP/gRPC──▶ App B
+</code></pre><p>在 sidecar 内部，这条链路被拆成五个职责清晰的层次：</p>
+<table>
+  <thead>
+      <tr>
+          <th>层次</th>
+          <th>位置</th>
+          <th>职责</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>入口层（API）</td>
+          <td><code>pkg/api/http</code>、<code>pkg/api/grpc</code></td>
+          <td>协议适配、参数解析、构造内部请求对象</td>
+      </tr>
+      <tr>
+          <td>路由层</td>
+          <td><code>pkg/messaging/direct_messaging.go</code></td>
+          <td>服务发现、本地/远端判定</td>
+      </tr>
+      <tr>
+          <td>执行层</td>
+          <td><code>pkg/messaging/direct_messaging.go</code></td>
+          <td>重试、超时、错误分类、请求重放</td>
+      </tr>
+      <tr>
+          <td>传输层</td>
+          <td><code>pkg/api/grpc/manager</code>、<code>pkg/security</code></td>
+          <td>连接池、负载均衡、mTLS</td>
+      </tr>
+      <tr>
+          <td>交付层（目标侧）</td>
+          <td><code>pkg/api/grpc/daprinternal.go</code>、<code>pkg/channel</code></td>
+          <td>ACL 鉴权、转发到本地 App</td>
+      </tr>
+  </tbody>
+</table>
+<p>而把这一切串起来的，只有一个极简接口（<code>pkg/messaging/v1/messaging.go:20-23</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// DirectMessaging is the API interface for invoking a remote app.</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">type</span> DirectMessaging <span style="color:#8be9fd;font-style:italic">interface</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">Invoke</span>(ctx context.Context, targetAppID <span style="color:#8be9fd">string</span>, req <span style="color:#ff79c6">*</span>InvokeMethodRequest) (<span style="color:#ff79c6">*</span>InvokeMethodResponse, <span style="color:#8be9fd">error</span>)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>这是整个服务调用最重要的一个抽象。</strong> HTTP 入口和 gRPC 入口都只持有这个接口，对后面发生的服务发现、重试、mTLS 一无所知。这种&quot;一个窄接口切断所有耦合&quot;的设计，是 Dapr 能同时支持 HTTP/gRPC 入口和多种托管平台的根本原因。</p>
+<h2 id="三入口层http-与-grpc-如何汇聚到同一个点">三、入口层：HTTP 与 gRPC 如何汇聚到同一个点</h2>
+<h3 id="31-http-侧一条路由兜住所有动词">3.1 HTTP 侧：一条路由兜住所有动词</h3>
+<p>Dapr 的 HTTP 服务调用<strong>只注册了一条 endpoint</strong>（<code>pkg/api/http/directmessaging.go:74-95</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (a <span style="color:#ff79c6">*</span>api) <span style="color:#50fa7b">constructDirectMessagingEndpoints</span>() []endpoints.Endpoint {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> []endpoints.Endpoint{
+</span></span><span style="display:flex;"><span>		{
+</span></span><span style="display:flex;"><span>			<span style="color:#6272a4">// No method is defined here to match any method</span>
+</span></span><span style="display:flex;"><span>			Methods: []<span style="color:#8be9fd">string</span>{},
+</span></span><span style="display:flex;"><span>			Route:   <span style="color:#f1fa8c">&#34;invoke/*&#34;</span>,
+</span></span><span style="display:flex;"><span>			Version: apiVersionV1,
+</span></span><span style="display:flex;"><span>			Group: <span style="color:#ff79c6">&amp;</span>endpoints.EndpointGroup{
+</span></span><span style="display:flex;"><span>				Name:                 endpoints.EndpointGroupServiceInvocation,
+</span></span><span style="display:flex;"><span>				Version:              endpoints.EndpointGroupVersion1,
+</span></span><span style="display:flex;"><span>				AppendSpanAttributes: appendDirectMessagingSpanAttributes,
+</span></span><span style="display:flex;"><span>				MethodName:           directMessagingMethodNameFn,
+</span></span><span style="display:flex;"><span>			},
+</span></span><span style="display:flex;"><span>			Handler: a.onDirectMessage,
+</span></span><span style="display:flex;"><span>			Settings: endpoints.EndpointSettings{
+</span></span><span style="display:flex;"><span>				Name:       <span style="color:#f1fa8c">&#34;InvokeService&#34;</span>,
+</span></span><span style="display:flex;"><span>				IsFallback: <span style="color:#ff79c6">true</span>,
+</span></span><span style="display:flex;"><span>			},
+</span></span><span style="display:flex;"><span>		},
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>三个设计细节值得注意：</p>
+<p><strong>① <code>Methods</code> 为空 = 匹配任意方法。</strong> 在 <code>pkg/api/http/server.go:461-484</code> 的 <code>handle</code> 中，空 <code>Methods</code> 走 <code>r.Handle(path, handler)</code> 而非 <code>r.Method(m, path, handler)</code>。GET/POST/PUT/DELETE 不在路由层区分，全部落到同一个 handler。</p>
+<p><strong>② <code>IsFallback: true</code> 让它同时成为 <code>NotFound</code> 和 <code>MethodNotAllowed</code> 的处理器。</strong> 这正是 Dapr 支持&quot;不改 URL，只加一个 <code>dapr-app-id</code> 头就能调用&quot;的实现基础——任意路径都能命中。</p>
+<p><strong>③ 路径是 <code>/v1.0/invoke/*</code>（<code>server.go:439</code> 拼装为 <code>&quot;/&quot; + e.Version + &quot;/&quot; + e.Route</code>）。</strong></p>
+<p>目标应用的 ID 与方法名从三处解析（<code>pkg/api/http/directmessaging.go:360-408</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// findTargetIDAndMethod finds ID of the target service and method from the following three places:</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// 1. HTTP header &#39;dapr-app-id&#39; (path is method)</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// 2. Basic auth header: `http://dapr-app-id:&lt;service-id&gt;@localhost:3500/&lt;method&gt;`</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// 3. URL parameter: `http://localhost:3500/v1.0/invoke/&lt;app-id&gt;/method/&lt;method&gt;`</span>
+</span></span></code></pre></div><p>注意这里用的是<strong>解码后的</strong> <code>r.URL.Path</code> 而非 <code>RawPath</code>（<code>directmessaging.go:97-105</code>），注释解释得很清楚：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// Use Path (decoded) rather than RawPath so that percent-encoded characters</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// are resolved before method extraction. This ensures the method string</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// used for ACL evaluation and dispatch is the decoded canonical form.</span>
+</span></span></code></pre></div><p><strong>这是一个安全设计</strong>：先解码再提取方法名，保证&quot;ACL 判定的字符串&quot;与&quot;实际派发的字符串&quot;是同一个规范形式。否则 <code>%2e%2e%2f</code> 这类编码就能绕过基于路径的 ACL 匹配。这是典型的 <strong>canonicalization before validation</strong>（先规范化再校验）原则。</p>
+<p>随后构造内部请求对象（<code>directmessaging.go:137-160</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span>req <span style="color:#ff79c6">:=</span> invokev1.<span style="color:#50fa7b">NewInvokeMethodRequest</span>(invokeMethodName).
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">WithHTTPExtension</span>(verb, r.URL.RawQuery).
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">WithRawData</span>(r.Body).
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">WithContentType</span>(r.Header.<span style="color:#50fa7b">Get</span>(<span style="color:#f1fa8c">&#34;content-type&#34;</span>)).
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Save headers to internal metadata</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">WithHTTPHeaders</span>(r.Header).
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">WithHTTPResponseWriter</span>(w)
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// For streaming requests (chunked transfer / unknown content length),</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// disable replay to prevent buffering the entire body in memory.</span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">if</span> r.ContentLength &lt; <span style="color:#bd93f9">0</span> {
+</span></span><span style="display:flex;"><span>	req.<span style="color:#50fa7b">SetStreamingRequest</span>()
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">if</span> policyDef <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>	req.<span style="color:#50fa7b">WithReplay</span>(policyDef.<span style="color:#50fa7b">HasRetries</span>())
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">defer</span> req.<span style="color:#50fa7b">Close</span>()
+</span></span></code></pre></div><p>三个要点：<code>r.Body</code> 作为 <code>io.Reader</code> 直接传入（不落地内存）、query string 原样透传、以及 <code>ContentLength &lt; 0</code> 时标记为流式请求（后面会讲为什么这会导致重试被禁用）。</p>
+<h3 id="32-grpc-侧三个-rpc-的分工">3.2 gRPC 侧：三个 RPC 的分工</h3>
+<p>gRPC 侧有三个相关 RPC，容易混淆：</p>
+<table>
+  <thead>
+      <tr>
+          <th>RPC</th>
+          <th>位置</th>
+          <th>用途</th>
+          <th>状态</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>InvokeService</code></td>
+          <td><code>pkg/api/grpc/grpc.go:277</code></td>
+          <td>应用主动发起的调用</td>
+          <td><strong>已标记 Deprecated</strong></td>
+      </tr>
+      <tr>
+          <td><code>CallLocal</code></td>
+          <td><code>pkg/api/grpc/daprinternal.go:44</code></td>
+          <td>sidecar → sidecar（一元）</td>
+          <td>内部</td>
+      </tr>
+      <tr>
+          <td><code>CallLocalStream</code></td>
+          <td><code>pkg/api/grpc/daprinternal.go:85</code></td>
+          <td>sidecar → sidecar（流式）</td>
+          <td>内部，当前主路径</td>
+      </tr>
+  </tbody>
+</table>
+<p><code>InvokeService</code> 的实现里已经明确写着：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// Deprecated: Use proxy mode service invocation instead.</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (a <span style="color:#ff79c6">*</span>api) <span style="color:#50fa7b">InvokeService</span>(ctx context.Context, in <span style="color:#ff79c6">*</span>runtimev1pb.InvokeServiceRequest) (<span style="color:#ff79c6">*</span>commonv1pb.InvokeResponse, <span style="color:#8be9fd">error</span>) {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> a.directMessaging <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#ff79c6">nil</span>, messages.ErrDirectInvokeNotReady
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> invokeServiceDeprecationNoticeShown.<span style="color:#50fa7b">CompareAndSwap</span>(<span style="color:#ff79c6">false</span>, <span style="color:#ff79c6">true</span>) {
+</span></span><span style="display:flex;"><span>		apiServerLogger.<span style="color:#50fa7b">Warn</span>(<span style="color:#f1fa8c">&#34;[DEPRECATION NOTICE] InvokeService is deprecated and will be removed in the future, please use proxy mode instead.&#34;</span>)
+</span></span><span style="display:flex;"><span>	}
+</span></span></code></pre></div><p><strong>Dapr 正在把服务调用从&quot;自定义 RPC + <code>InvokeRequest</code> 包装&quot;迁移到&quot;gRPC 透明代理&quot;。</strong> 新模式下应用直接发自己的 proto 方法，daprd 通过 <code>UnknownServiceHandler</code> 接管不认识的方法并转发（<code>pkg/api/grpc/server.go:357-359</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#ff79c6">if</span> s.proxy <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>	opts = <span style="color:#8be9fd;font-style:italic">append</span>(opts, grpcGo.<span style="color:#50fa7b">UnknownServiceHandler</span>(s.proxy.<span style="color:#50fa7b">Handler</span>()))
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>这样应用无需引入任何 Dapr SDK 或 Dapr 自定义的 proto。</p>
+<h3 id="33-汇聚点与内部请求对象">3.3 汇聚点与内部请求对象</h3>
+<p>无论 HTTP 还是 gRPC，最终都构建同一个内部对象 <code>InvokeMethodRequest</code>（<code>pkg/messaging/v1/invoke_method_request.go:37-49</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">type</span> InvokeMethodRequest <span style="color:#8be9fd;font-style:italic">struct</span> {
+</span></span><span style="display:flex;"><span>	replayableRequest
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	r                  <span style="color:#ff79c6">*</span>internalv1pb.InternalInvokeRequest
+</span></span><span style="display:flex;"><span>	dataObject         <span style="color:#8be9fd">any</span>
+</span></span><span style="display:flex;"><span>	dataTypeURL        <span style="color:#8be9fd">string</span>
+</span></span><span style="display:flex;"><span>	httpResponseWriter http.ResponseWriter
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// streamingRequest is set when the request body is a stream that cannot be</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// replayed (e.g. chunked-transfer / unknown content-length).</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// When true, WithReplay becomes a no-op to prevent the entire body</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// from being buffered into memory for retry purposes.</span>
+</span></span><span style="display:flex;"><span>	streamingRequest <span style="color:#8be9fd">bool</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>其内部表示 <code>InternalInvokeRequest</code>（<code>pkg/proto/internals/v1/service_invocation.pb.go:97-111</code>）包含四个字段：<code>Ver</code>、<code>Metadata</code>、<code>Message</code>、<code>Actor</code>。</p>
+<p><strong>这里是最关键的设计决策之一：HTTP header 与 gRPC metadata 被统一成同一个 <code>Metadata map[string]*ListStringValue</code>。</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> <span style="color:#50fa7b">HTTPHeadersToInternalMetadata</span>(header http.Header) <span style="color:#8be9fd;font-style:italic">map</span>[<span style="color:#8be9fd">string</span>]<span style="color:#ff79c6">*</span>ListStringValue {
+</span></span><span style="display:flex;"><span>	internalMD <span style="color:#ff79c6">:=</span> <span style="color:#8be9fd;font-style:italic">make</span>(<span style="color:#8be9fd;font-style:italic">map</span>[<span style="color:#8be9fd">string</span>]<span style="color:#ff79c6">*</span>ListStringValue, <span style="color:#8be9fd;font-style:italic">len</span>(header))
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">for</span> key, val <span style="color:#ff79c6">:=</span> <span style="color:#ff79c6">range</span> header {
+</span></span><span style="display:flex;"><span>		<span style="color:#6272a4">// Note: HTTP headers can never be binary (only gRPC supports binary headers)</span>
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> internalMD
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>因为 HTTP header 是多值的，gRPC metadata 也是多值的，两者可以无损互转。这意味着<strong>sidecar ↔ sidecar 这一段完全不需要知道上游是 HTTP 还是 gRPC</strong>——它只搬运 <code>Metadata</code> + <code>Message</code>，到目标端再按需转回 HTTP header 或 gRPC metadata。这是&quot;双协议支持&quot;能保持低成本的根本原因。</p>
+<h2 id="四路由层从-appid-到一个-hostport">四、路由层：从 appID 到一个 host:port</h2>
+<h3 id="41-appid-与-namespace-的拆分">4.1 appID 与 namespace 的拆分</h3>
+<p>Dapr 的命名空间模型极其简单（<code>pkg/messaging/direct_messaging.go:193-210</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (d <span style="color:#ff79c6">*</span>directMessaging) <span style="color:#50fa7b">requestAppIDAndNamespace</span>(targetAppID <span style="color:#8be9fd">string</span>) (<span style="color:#8be9fd">string</span>, <span style="color:#8be9fd">string</span>, <span style="color:#8be9fd">error</span>) {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> targetAppID <span style="color:#ff79c6">==</span> <span style="color:#f1fa8c">&#34;&#34;</span> {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#f1fa8c">&#34;&#34;</span>, <span style="color:#f1fa8c">&#34;&#34;</span>, errors.<span style="color:#50fa7b">New</span>(<span style="color:#f1fa8c">&#34;app id is empty&#34;</span>)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// external invocation with targetAppID == baseURL</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> strings.<span style="color:#50fa7b">HasPrefix</span>(targetAppID, <span style="color:#f1fa8c">&#34;http://&#34;</span>) <span style="color:#ff79c6">||</span> strings.<span style="color:#50fa7b">HasPrefix</span>(targetAppID, <span style="color:#f1fa8c">&#34;https://&#34;</span>) {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> targetAppID, <span style="color:#f1fa8c">&#34;&#34;</span>, <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	items <span style="color:#ff79c6">:=</span> strings.<span style="color:#50fa7b">Split</span>(targetAppID, <span style="color:#f1fa8c">&#34;.&#34;</span>)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">switch</span> <span style="color:#8be9fd;font-style:italic">len</span>(items) {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">case</span> <span style="color:#bd93f9">1</span>:
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> targetAppID, d.namespace, <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">case</span> <span style="color:#bd93f9">2</span>:
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> items[<span style="color:#bd93f9">0</span>], items[<span style="color:#bd93f9">1</span>], <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">default</span>:
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#f1fa8c">&#34;&#34;</span>, <span style="color:#f1fa8c">&#34;&#34;</span>, fmt.<span style="color:#50fa7b">Errorf</span>(<span style="color:#f1fa8c">&#34;invalid app id %s&#34;</span>, targetAppID)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>只支持 <code>appID</code> 或 <code>appID.namespace</code> 两种形式，超过两段直接报错。</strong> 不写 namespace 时取本 sidecar 的 namespace。</p>
+<p>注意 <code>http://</code> / <code>https://</code> 前缀这个特例——它让 Dapr 能用同一套 API 调用<strong>非 Dapr 的外部 HTTP 服务</strong>（这也是 <code>HTTPEndpoint</code> CRD 的实现基础）。</p>
+<h3 id="42-getremoteapp三条分支与缓存">4.2 getRemoteApp：三条分支与缓存</h3>
+<p><code>getRemoteApp</code>（<code>direct_messaging.go:607-685</code>）是服务发现的入口：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#ff79c6">switch</span> {
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">case</span> strings.<span style="color:#50fa7b">HasPrefix</span>(res.id, <span style="color:#f1fa8c">&#34;http://&#34;</span>) <span style="color:#ff79c6">||</span> strings.<span style="color:#50fa7b">HasPrefix</span>(res.id, <span style="color:#f1fa8c">&#34;https://&#34;</span>):
+</span></span><span style="display:flex;"><span>	res.address = res.id
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">case</span> d.<span style="color:#50fa7b">isHTTPEndpoint</span>(res.id):
+</span></span><span style="display:flex;"><span>	res.address = d.<span style="color:#50fa7b">checkHTTPEndpoints</span>(res.id)
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">default</span>:
+</span></span><span style="display:flex;"><span>	request <span style="color:#ff79c6">:=</span> nr.ResolveRequest{
+</span></span><span style="display:flex;"><span>		ID:        res.id,
+</span></span><span style="display:flex;"><span>		Namespace: res.namespace,
+</span></span><span style="display:flex;"><span>		Port:      d.grpcPort,
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// ... 解析</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>解析分两条路径，取决于 resolver 是否实现了<strong>可选接口</strong> <code>ResolverMulti</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// If the component implements ResolverMulti, we can use caching</span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">if</span> d.resolverMulti <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#8be9fd;font-style:italic">var</span> addresses nr.AddressList
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> d.resolverCache <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		res.cacheKey = request.<span style="color:#50fa7b">CacheKey</span>()
+</span></span><span style="display:flex;"><span>		addresses, _ = d.resolverCache.<span style="color:#50fa7b">Get</span>(res.cacheKey)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> <span style="color:#8be9fd;font-style:italic">len</span>(addresses) &gt; <span style="color:#bd93f9">0</span> {
+</span></span><span style="display:flex;"><span>			<span style="color:#6272a4">// Pick a random one</span>
+</span></span><span style="display:flex;"><span>			res.address = addresses.<span style="color:#50fa7b">Pick</span>()
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> res.address <span style="color:#ff79c6">==</span> <span style="color:#f1fa8c">&#34;&#34;</span> {
+</span></span><span style="display:flex;"><span>		addresses, err = d.resolverMulti.<span style="color:#50fa7b">ResolveIDMulti</span>(ctx, request)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>		res.address = addresses.<span style="color:#50fa7b">Pick</span>()
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> <span style="color:#8be9fd;font-style:italic">len</span>(addresses) &gt; <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&amp;&amp;</span> res.cacheKey <span style="color:#ff79c6">!=</span> <span style="color:#f1fa8c">&#34;&#34;</span> {
+</span></span><span style="display:flex;"><span>			d.resolverCache.<span style="color:#50fa7b">Set</span>(res.cacheKey, addresses, resolverCacheTTL)
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>} <span style="color:#ff79c6">else</span> {
+</span></span><span style="display:flex;"><span>	err = backoff.<span style="color:#50fa7b">Retry</span>(<span style="color:#8be9fd;font-style:italic">func</span>() <span style="color:#8be9fd">error</span> {
+</span></span><span style="display:flex;"><span>		<span style="color:#8be9fd;font-style:italic">var</span> rerr <span style="color:#8be9fd">error</span>
+</span></span><span style="display:flex;"><span>		res.address, rerr = d.resolver.<span style="color:#50fa7b">ResolveID</span>(ctx, request)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> rerr <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">return</span> backoff.<span style="color:#50fa7b">Permanent</span>(rerr)
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> <span style="color:#8be9fd;font-style:italic">len</span>(res.address) <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span> {
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">return</span> fmt.<span style="color:#50fa7b">Errorf</span>(<span style="color:#f1fa8c">&#34;resolver returned empty address for app id %s/%s&#34;</span>, request.Namespace, request.ID)
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>	}, backoff.<span style="color:#50fa7b">WithMaxRetries</span>(
+</span></span><span style="display:flex;"><span>		backoff.<span style="color:#50fa7b">WithContext</span>(backoff.<span style="color:#50fa7b">NewConstantBackOff</span>(<span style="color:#bd93f9">100</span><span style="color:#ff79c6">*</span>time.Millisecond), ctx),
+</span></span><span style="display:flex;"><span>		<span style="color:#bd93f9">5</span>),
+</span></span><span style="display:flex;"><span>	)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>这里有三个值得学习的设计点：</p>
+<p><strong>① 用类型断言做能力探测。</strong> <code>dm.resolverMulti, _ = opts.Resolver.(nr.ResolverMulti)</code>（<code>direct_messaging.go:136</code>）。老组件只实现 <code>ResolveID</code> 也能正常工作，新组件实现 <code>ResolveIDMulti</code> 就能获得多地址 + 缓存能力。这是 Go 里做&quot;向后兼容的能力升级&quot;的标准姿势。</p>
+<p><strong>② 缓存只在多地址场景下建立。</strong> <code>resolverCache</code> 仅在 <code>resolverMulti != nil</code> 时才创建（<code>direct_messaging.go:135-141</code>），因为单地址 resolver（如 mDNS）内部已有自己的缓存，再套一层是浪费。</p>
+<p><strong>③ 重试策略区分错误类型。</strong> resolver 返回的真实错误是 <code>backoff.Permanent</code>（不重试），只有&quot;返回空地址&quot;才重试。这个区分很精准——解析失败（配置错误、网络不通）重试没意义，而&quot;暂时还没发现&quot;重试是有意义的。</p>
+<p><code>AddressList.Pick()</code> 的实现也很有意思（<code>components-contrib/nameresolution/nameresolution.go</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (a AddressList) <span style="color:#50fa7b">Pick</span>() <span style="color:#8be9fd">string</span> {
+</span></span><span style="display:flex;"><span>	l <span style="color:#ff79c6">:=</span> <span style="color:#8be9fd;font-style:italic">len</span>(a)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">switch</span> l {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">case</span> <span style="color:#bd93f9">0</span>:
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#f1fa8c">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">case</span> <span style="color:#bd93f9">1</span>:
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> a[<span style="color:#bd93f9">0</span>]
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">default</span>:
+</span></span><span style="display:flex;"><span>		<span style="color:#6272a4">// We use math/rand here as we are just picking a random address, so we don&#39;t need a CSPRNG</span>
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">//nolint:gosec</span>
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> a[rand.<span style="color:#50fa7b">Intn</span>(l)]
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>注意这是客户端随机选择，不是轮询。</strong> 配合下面的 <code>dns:///</code> 与 gRPC 内置 round_robin，形成了两级负载均衡。</p>
+<h3 id="43-name-resolution-的实现注意不在主仓库">4.3 Name Resolution 的实现（注意：不在主仓库）</h3>
+<blockquote>
+<p><strong>重要说明</strong>：<code>dapr/dapr</code> 主仓库中<strong>不包含</strong>任何 resolver 实现。核心接口与所有 resolver 都在 <code>github.com/dapr/components-contrib</code>（本文对应本地检出 commit <code>0d6569ac</code>）。主仓库只保留注册表、装配点与上层集成。</p>
+</blockquote>
+<p>接口定义（<code>components-contrib/nameresolution/nameresolution.go:23-36</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// Resolver is the interface of name resolver.</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">type</span> Resolver <span style="color:#8be9fd;font-style:italic">interface</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Init initializes name resolver.</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">Init</span>(ctx context.Context, metadata Metadata) <span style="color:#8be9fd">error</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// ResolveID resolves name to address.</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">ResolveID</span>(ctx context.Context, req ResolveRequest) (<span style="color:#8be9fd">string</span>, <span style="color:#8be9fd">error</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	io.Closer
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// ResolverMulti is an optional interface for name resolvers that can return multiple addresses.</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">type</span> ResolverMulti <span style="color:#8be9fd;font-style:italic">interface</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">ResolveIDMulti</span>(ctx context.Context, req ResolveRequest) (AddressList, <span style="color:#8be9fd">error</span>)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>Kubernetes resolver 只用 DNS，不用 informer。</strong> 这是很多人会猜错的地方。在 <code>components-contrib/nameresolution/</code> 全目录 grep <code>EndpointSlice|informer|discoveryv1</code> 结果是零匹配，<code>kubernetes.go</code> 也没有引入任何 client-go 依赖。它的 <code>ResolveID</code> 就是纯字符串拼接（<code>kubernetes.go:96-102</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (k <span style="color:#ff79c6">*</span>resolver) <span style="color:#50fa7b">ResolveID</span>(ctx context.Context, req nameresolution.ResolveRequest) (<span style="color:#8be9fd">string</span>, <span style="color:#8be9fd">error</span>) {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> k.tmpl <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#50fa7b">executeTemplateWithResolveRequest</span>(k.tmpl, req)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Dapr requires this formatting for Kubernetes services</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> req.ID <span style="color:#ff79c6">+</span> <span style="color:#f1fa8c">&#34;-dapr.&#34;</span> <span style="color:#ff79c6">+</span> req.Namespace <span style="color:#ff79c6">+</span> <span style="color:#f1fa8c">&#34;.svc.&#34;</span> <span style="color:#ff79c6">+</span> k.clusterDomain <span style="color:#ff79c6">+</span> <span style="color:#f1fa8c">&#34;:&#34;</span> <span style="color:#ff79c6">+</span> strconv.<span style="color:#50fa7b">Itoa</span>(req.Port), <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>即 <code>&lt;appID&gt;-dapr.&lt;namespace&gt;.svc.cluster.local:&lt;internalGRPCPort&gt;</code>。</p>
+<p>那个 <code>-dapr</code> 后缀的 Service 由 <strong>Dapr Operator</strong> 创建，而且是 <strong>headless service</strong>（<code>pkg/operator/handlers/dapr_handler.go:160-162</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (h <span style="color:#ff79c6">*</span>DaprHandler) <span style="color:#50fa7b">daprServiceName</span>(appID <span style="color:#8be9fd">string</span>) <span style="color:#8be9fd">string</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> appID <span style="color:#ff79c6">+</span> <span style="color:#f1fa8c">&#34;-dapr&#34;</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><code>ClusterIP: &quot;None&quot;</code> + 无 selector 负载均衡，意味着 <strong>DNS 查询直接返回所有 Pod IP</strong>。这正是 <code>ResolveIDMulti</code> 用 <code>net.LookupIP</code> 拿全部 A/AAAA 记录的意义所在，也是下一节 <code>dns:///</code> 前缀能生效的前提。</p>
+<p><strong>mDNS resolver 则复杂得多</strong>（<code>mdns/mdns.go</code>，884 行），它用于自托管模式：</p>
+<ul>
+<li>IPv4 / IPv6 <strong>双份独立缓存</strong>，各自独立 RWMutex、各自独立轮询</li>
+<li>地址 TTL 60 秒，惰性淘汰</li>
+<li>后台每 30 秒全量刷新</li>
+<li>用 <code>SubscriberPool</code> + <code>sync.Once</code> 做 <strong>single-flight</strong>：多个调用方同时请求同一个未缓存的 appID 时，只有第一个真正发起 browse，其余订阅结果</li>
+<li><code>refreshChan</code> 缓冲 36（注释说明：满了会阻塞发送方从而延迟服务调用，36 是避免过度分配的经验值）</li>
+</ul>
+<p>resolver 的选择逻辑（<code>pkg/runtime/runtime.go:1149-1159</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#ff79c6">if</span> resolverName <span style="color:#ff79c6">==</span> <span style="color:#f1fa8c">&#34;&#34;</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">switch</span> a.runtimeConfig.mode {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">case</span> modes.KubernetesMode:
+</span></span><span style="display:flex;"><span>		resolverName = <span style="color:#f1fa8c">&#34;kubernetes&#34;</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">case</span> modes.StandaloneMode:
+</span></span><span style="display:flex;"><span>		resolverName = <span style="color:#f1fa8c">&#34;mdns&#34;</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">default</span>:
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">...</span>unable to determine name resolver <span style="color:#ff79c6">for</span> <span style="color:#ff79c6">%</span>s mode
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>注册通过构建标签控制（<code>cmd/daprd/components/nameresolution_mdns.go</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#ff79c6">//go:build allcomponents || stablecomponents</span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> <span style="color:#50fa7b">init</span>() {
+</span></span><span style="display:flex;"><span>	nrLoader.DefaultRegistry.<span style="color:#50fa7b">RegisterComponent</span>(mdns.NewResolver, <span style="color:#f1fa8c">&#34;mdns&#34;</span>)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="五执行层重试重放与错误分类">五、执行层：重试、重放与错误分类</h2>
+<h3 id="51-invokewithretry">5.1 invokeWithRetry</h3>
+<p><code>Invoke</code> 先做方法名规范化，再判定本地/远端（<code>direct_messaging.go:163-190</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (d <span style="color:#ff79c6">*</span>directMessaging) <span style="color:#50fa7b">Invoke</span>(ctx context.Context, targetAppID <span style="color:#8be9fd">string</span>, req <span style="color:#ff79c6">*</span>invokev1.InvokeMethodRequest) (<span style="color:#ff79c6">*</span>invokev1.InvokeMethodResponse, <span style="color:#8be9fd">error</span>) {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Normalize the method at the service invocation edge: reject forbidden</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// characters and resolve path traversal.</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> msg <span style="color:#ff79c6">:=</span> req.<span style="color:#50fa7b">Message</span>(); msg <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		normalized, normErr <span style="color:#ff79c6">:=</span> method.<span style="color:#50fa7b">NormalizeMethod</span>(msg.<span style="color:#50fa7b">GetMethod</span>())
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> normErr <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">return</span> <span style="color:#ff79c6">nil</span>, status.<span style="color:#50fa7b">Errorf</span>(codes.InvalidArgument, <span style="color:#f1fa8c">&#34;invalid method: %v&#34;</span>, normErr)
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		msg.Method = normalized
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	app, err <span style="color:#ff79c6">:=</span> d.<span style="color:#50fa7b">getRemoteApp</span>(ctx, targetAppID)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> err <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#ff79c6">nil</span>, err
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// invoke external calls first if appID matches an httpEndpoint.Name or app.id == baseURL that is overwritten</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> d.<span style="color:#50fa7b">isHTTPEndpoint</span>(app.id) <span style="color:#ff79c6">||</span> strings.<span style="color:#50fa7b">HasPrefix</span>(app.id, <span style="color:#f1fa8c">&#34;http://&#34;</span>) <span style="color:#ff79c6">||</span> strings.<span style="color:#50fa7b">HasPrefix</span>(app.id, <span style="color:#f1fa8c">&#34;https://&#34;</span>) {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> d.<span style="color:#50fa7b">invokeWithRetry</span>(ctx, retry.DefaultLinearRetryCount, retry.DefaultLinearBackoffInterval, app, d.invokeHTTPEndpoint, req)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> app.id <span style="color:#ff79c6">==</span> d.appID <span style="color:#ff79c6">&amp;&amp;</span> app.namespace <span style="color:#ff79c6">==</span> d.namespace {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> d.<span style="color:#50fa7b">invokeLocal</span>(ctx, req)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> d.<span style="color:#50fa7b">invokeWithRetry</span>(ctx, retry.DefaultLinearRetryCount, retry.DefaultLinearBackoffInterval, app, d.invokeRemote, req)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>关于&quot;本地 vs 远端&quot;的判定，有个容易误解的点：<strong>判定依据是 <code>app.id == d.appID &amp;&amp; app.namespace == d.namespace</code>，即 appID 与 namespace 同时相等，不是比较解析出来的地址是否等于自己。</strong> <code>hostAddress</code>/<code>hostName</code> 字段只用于构造 <code>X-Forwarded-For</code> 等转发头。同 appID 的多实例场景下，每个实例都会判定为&quot;本地&quot;并直接走 app channel，不做网络往返——这是一个很自然的短路优化。</p>
+<h3 id="52-真实生效的重试策略">5.2 真实生效的重试策略</h3>
+<p><code>invokeWithRetry</code>（<code>direct_messaging.go:227-272</code>）是重试的核心：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#ff79c6">if</span> !d.resiliency.<span style="color:#50fa7b">PolicyDefined</span>(app.id, resiliency.EndpointPolicy{}) <span style="color:#ff79c6">&amp;&amp;</span> !req.<span style="color:#50fa7b">IsStreamingRequest</span>() {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Enable body buffering so the request can be replayed on retry.</span>
+</span></span><span style="display:flex;"><span>	req.<span style="color:#50fa7b">WithReplay</span>(<span style="color:#ff79c6">true</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	policyRunner <span style="color:#ff79c6">:=</span> resiliency.<span style="color:#50fa7b">NewRunnerWithOptions</span>(ctx,
+</span></span><span style="display:flex;"><span>		d.resiliency.<span style="color:#50fa7b">BuiltInPolicy</span>(resiliency.BuiltInServiceRetries),
+</span></span><span style="display:flex;"><span>		resiliency.RunnerOpts[<span style="color:#ff79c6">*</span>invokev1.InvokeMethodResponse]{
+</span></span><span style="display:flex;"><span>			Disposer: resiliency.DisposerCloser[<span style="color:#ff79c6">*</span>invokev1.InvokeMethodResponse],
+</span></span><span style="display:flex;"><span>		},
+</span></span><span style="display:flex;"><span>	)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> <span style="color:#50fa7b">policyRunner</span>(<span style="color:#8be9fd;font-style:italic">func</span>(ctx context.Context) (<span style="color:#ff79c6">*</span>invokev1.InvokeMethodResponse, <span style="color:#8be9fd">error</span>) {
+</span></span><span style="display:flex;"><span>		attempt <span style="color:#ff79c6">:=</span> resiliency.<span style="color:#50fa7b">GetAttempt</span>(ctx)
+</span></span><span style="display:flex;"><span>		rResp, teardown, rErr <span style="color:#ff79c6">:=</span> <span style="color:#50fa7b">fn</span>(ctx, app.id, app.namespace, app.address, req)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> rErr <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>			<span style="color:#50fa7b">teardown</span>(<span style="color:#ff79c6">false</span>)
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">return</span> rResp, <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>		code <span style="color:#ff79c6">:=</span> status.<span style="color:#50fa7b">Code</span>(rErr)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> code <span style="color:#ff79c6">==</span> codes.Unavailable <span style="color:#ff79c6">||</span> code <span style="color:#ff79c6">==</span> codes.Unauthenticated {
+</span></span><span style="display:flex;"><span>			<span style="color:#6272a4">// Destroy the connection and force a re-connection on the next attempt</span>
+</span></span><span style="display:flex;"><span>			<span style="color:#6272a4">// We also remove the resolved name from the cache</span>
+</span></span><span style="display:flex;"><span>			<span style="color:#50fa7b">teardown</span>(<span style="color:#ff79c6">true</span>)
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">if</span> app.cacheKey <span style="color:#ff79c6">!=</span> <span style="color:#f1fa8c">&#34;&#34;</span> <span style="color:#ff79c6">&amp;&amp;</span> d.resolverCache <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>				d.resolverCache.<span style="color:#50fa7b">Delete</span>(app.cacheKey)
+</span></span><span style="display:flex;"><span>			}
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">return</span> rResp, fmt.<span style="color:#50fa7b">Errorf</span>(<span style="color:#f1fa8c">&#34;failed to invoke target %s after %d retries. Error: %w&#34;</span>, app.id, attempt<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>, rErr)
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>		<span style="color:#50fa7b">teardown</span>(<span style="color:#ff79c6">false</span>)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> rResp, backoff.<span style="color:#50fa7b">Permanent</span>(rErr)
+</span></span><span style="display:flex;"><span>	})
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>一个必须指出的源码事实</strong>：<code>invokeWithRetry</code> 的形参 <code>numRetries</code> 和 <code>backoffInterval</code> <strong>在函数体内完全未被使用</strong>（已 grep 验证，仅在签名第 229-230 行出现）。调用方传入的 <code>retry.DefaultLinearRetryCount</code>（3）和 <code>retry.DefaultLinearBackoffInterval</code>（1s）实际被忽略。</p>
+<p>真正生效的是内建策略（<code>pkg/resiliency/resiliency.go:340-351</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (r <span style="color:#ff79c6">*</span>Resiliency) <span style="color:#50fa7b">addBuiltInPolicies</span>() {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Cover retries for remote service invocation, but don&#39;t overwrite anything that is already present.</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> _, ok <span style="color:#ff79c6">:=</span> r.retries[<span style="color:#8be9fd;font-style:italic">string</span>(BuiltInServiceRetries)]; !ok {
+</span></span><span style="display:flex;"><span>		r.retries[<span style="color:#8be9fd;font-style:italic">string</span>(BuiltInServiceRetries)] = <span style="color:#ff79c6">&amp;</span>Retry{
+</span></span><span style="display:flex;"><span>			Config: retry.Config{
+</span></span><span style="display:flex;"><span>				Policy: retry.PolicyConstant,
+</span></span><span style="display:flex;"><span>				<span style="color:#6272a4">// Note: If this value changes to 0, don&#39;t forget to disable &#34;Replay&#34; in direct messaging</span>
+</span></span><span style="display:flex;"><span>				MaxRetries: <span style="color:#bd93f9">3</span>,
+</span></span><span style="display:flex;"><span>				Duration:   time.Second,
+</span></span><span style="display:flex;"><span>			},
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>即 <strong>Constant 策略、最多 3 次、固定间隔 1 秒</strong>，策略名 <code>DaprBuiltInServiceRetries</code>。数值上与死参数巧合一致，但这属于历史遗留而非设计。</p>
+<p>两个触发&quot;跳过内建重试&quot;的条件：</p>
+<ul>
+<li><strong>用户已定义 EndpointPolicy</strong>（<code>PolicyDefined</code> 为 true）→ 交给 API 层的 policyRunner 处理，避免双层重试叠加</li>
+<li><strong>流式请求</strong>（<code>IsStreamingRequest()</code>）→ 无法重放，直接跳过</li>
+</ul>
+<h3 id="53-replayablerequest重试的前提">5.3 ReplayableRequest：重试的前提</h3>
+<p>这是整个重试机制最精巧的部分。问题很直接：<strong>请求体是 <code>io.Reader</code>（HTTP body），读一次就没了；重试意味着要再读一遍。</strong></p>
+<p><code>replayable_request.go:40-122</code> 给出的方案是 T 型三通（tee）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">type</span> replayableRequest <span style="color:#8be9fd;font-style:italic">struct</span> {
+</span></span><span style="display:flex;"><span>	data             io.Reader
+</span></span><span style="display:flex;"><span>	replay           <span style="color:#ff79c6">*</span>bytes.Buffer
+</span></span><span style="display:flex;"><span>	lock             sync.Mutex
+</span></span><span style="display:flex;"><span>	currentTeeReader <span style="color:#ff79c6">*</span>streamutils.TeeReadCloser
+</span></span><span style="display:flex;"><span>	currentData      []<span style="color:#8be9fd">byte</span>
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// RawData returns the stream body.</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (rr <span style="color:#ff79c6">*</span>replayableRequest) <span style="color:#50fa7b">RawData</span>() (r io.Reader) {
+</span></span><span style="display:flex;"><span>	rr.lock.<span style="color:#50fa7b">Lock</span>()
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">defer</span> rr.lock.<span style="color:#50fa7b">Unlock</span>()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// If there&#39;s a previous TeeReadCloser, stop it so readers won&#39;t add more data into its replay buffer</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> rr.currentTeeReader <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		_ = rr.currentTeeReader.<span style="color:#50fa7b">Stop</span>()
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> rr.data <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		r = bytes.<span style="color:#50fa7b">NewReader</span>(<span style="color:#ff79c6">nil</span>)
+</span></span><span style="display:flex;"><span>	} <span style="color:#ff79c6">else</span> <span style="color:#ff79c6">if</span> rr.replay <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		l <span style="color:#ff79c6">:=</span> rr.replay.<span style="color:#50fa7b">Len</span>()
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> rr.currentData <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>			rr.currentData = bsPool.<span style="color:#50fa7b">Get</span>(l)
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		rr.currentData = bsPool.<span style="color:#50fa7b">Resize</span>(rr.currentData, l)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>		<span style="color:#8be9fd;font-style:italic">copy</span>(rr.currentData[<span style="color:#bd93f9">0</span>:l], rr.replay.<span style="color:#50fa7b">Bytes</span>())
+</span></span><span style="display:flex;"><span>		rr.replay.<span style="color:#50fa7b">Reset</span>()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>		<span style="color:#6272a4">// Create a new TeeReadCloser that reads from the previously-read data and then the data not yet processed</span>
+</span></span><span style="display:flex;"><span>		mr <span style="color:#ff79c6">:=</span> streamutils.<span style="color:#50fa7b">NewMultiReaderCloser</span>(bytes.<span style="color:#50fa7b">NewReader</span>(rr.currentData[<span style="color:#bd93f9">0</span>:l]), rr.data)
+</span></span><span style="display:flex;"><span>		rr.currentTeeReader = streamutils.<span style="color:#50fa7b">NewTeeReadCloser</span>(mr, rr.replay)
+</span></span><span style="display:flex;"><span>		r = rr.currentTeeReader
+</span></span><span style="display:flex;"><span>	} <span style="color:#ff79c6">else</span> {
+</span></span><span style="display:flex;"><span>		r = rr.data
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> r
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>每次调 <code>RawData()</code> 时：先重放已读过的 <code>currentData</code>，再接上剩余未读的 <code>rr.data</code>，同时用 tee 把新读到的数据继续写入 <code>replay</code> 缓冲。缓冲区来自 <code>sync.Pool</code>（<code>minByteSliceCapacity = 2 &lt;&lt; 10</code>）。</p>
+<p><strong>设计亮点</strong>：它不是&quot;把整个 body 读进内存&quot;，而是&quot;边读边记，重放时拼接&quot;。对未失败的请求，开销只是一次内存拷贝 + 一次 tee。而且如果数据本来就在内存中（<code>HasMessageData()</code>），<code>WithReplay</code> 直接是 no-op：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (imr <span style="color:#ff79c6">*</span>InvokeMethodRequest) <span style="color:#50fa7b">WithReplay</span>(enabled <span style="color:#8be9fd">bool</span>) <span style="color:#ff79c6">*</span>InvokeMethodRequest {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> imr.streamingRequest {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> imr
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// If the object has data in-memory, WithReplay is a nop</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> !imr.<span style="color:#50fa7b">HasMessageData</span>() {
+</span></span><span style="display:flex;"><span>		imr.<span style="color:#50fa7b">SetReplay</span>(enabled)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> imr
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="54-可重试错误的判定">5.4 可重试错误的判定</h3>
+<p>只有两类 gRPC 状态码会被重试：<code>codes.Unavailable</code> 和 <code>codes.Unauthenticated</code>。</p>
+<p><strong>为什么是这两个？</strong> 因为它们精确对应&quot;目标实例已不存在&quot;和&quot;证书正在轮换&quot;这两种<strong>瞬时</strong>故障：</p>
+<ul>
+<li><code>Unavailable</code>：目标 Pod 被调度走、正在启动、连接被服务端 GOAWAY</li>
+<li><code>Unauthenticated</code>：sidecar 证书轮换期间，对端用旧证书校验新连接会短暂失败</li>
+</ul>
+<p>其余错误（如 <code>InvalidArgument</code>、<code>PermissionDenied</code>、<code>NotFound</code>）都是<strong>确定性</strong>的，重试一百次结果一样，所以立即 <code>backoff.Permanent</code> 终止。</p>
+<p>这个分类体现了重试设计的核心原则：<strong>只对&quot;重试可能成功&quot;的失败重试</strong>。盲目重试所有错误在下游过载时会变成&quot;重试风暴&quot;，把可恢复的故障放大成雪崩。</p>
+<p><code>Unavailable</code>/<code>Unauthenticated</code> 时还会做两件额外的事——<strong>销毁连接</strong>并<strong>删除解析缓存</strong>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#50fa7b">teardown</span>(<span style="color:#ff79c6">true</span>)
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">if</span> app.cacheKey <span style="color:#ff79c6">!=</span> <span style="color:#f1fa8c">&#34;&#34;</span> <span style="color:#ff79c6">&amp;&amp;</span> d.resolverCache <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>	d.resolverCache.<span style="color:#50fa7b">Delete</span>(app.cacheKey)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>这构成了一个完整的自愈闭环：实例挂了 → 连接销毁 → 缓存失效 → 下次重新解析 → 拿到新实例地址。</p>
+<h3 id="55-流式请求的豁免">5.5 流式请求的豁免</h3>
+<p>前面提到 <code>ContentLength &lt; 0</code> 会调 <code>SetStreamingRequest()</code>。链式反应是：</p>
+<ol>
+<li><code>WithReplay</code> 变成 no-op（不缓冲 body）</li>
+<li><code>invokeWithRetry</code> 因 <code>IsStreamingRequest()</code> 跳过重试包装</li>
+</ol>
+<p>这与官方文档一致：</p>
+<blockquote>
+<p>&ldquo;the request body is consumed as it is read and cannot be replayed.&rdquo;</p>
+</blockquote>
+<p><strong>这是一个正确的取舍</strong>：为一个 1GB 的文件上传请求做重试，意味着要么缓存 1GB 到内存，要么放弃重试。Dapr 选择放弃重试，同时保证流式响应（SSE、文件下载）也能正常工作。而且熔断器等其他 resiliency 特性对流式请求依然生效。</p>
+<h3 id="56-关于超时一个需要澄清的点">5.6 关于超时：一个需要澄清的点</h3>
+<p>旧版文档提到&quot;通过 gRPC 连接目标 sidecar 的超时时间为 5 秒&quot;。<strong>在当前源码中并未找到服务调用级别的默认超时</strong>：全仓 grep <code>remoteAppTimeout|daprRemoteAppTimeout|invocationTimeout|InvokeTimeout</code> 无结果，<code>pkg/messaging/</code> 中唯一的超时相关代码是 name resolution 的 backoff。</p>
+<p>实际存在的超时只有：</p>
+<ul>
+<li><strong>拨号超时 30 秒</strong>（<code>pkg/api/grpc/manager/manager.go:45</code> <code>dialTimeout</code>）</li>
+<li><strong>用户通过 Resiliency CRD 配置的 timeout</strong>（<code>pkg/resiliency/policy.go:115-165</code> 做 <code>context.WithTimeout</code> 包裹）</li>
+</ul>
+<p>也就是说，<strong>默认情况下一次服务调用没有端到端超时保护</strong>，超时需要用户通过 Resiliency 策略显式配置。这是一个值得注意的运维风险点。</p>
+<h2 id="六传输层连接池负载均衡与-mtls">六、传输层：连接池、负载均衡与 mTLS</h2>
+<h3 id="61-连接池以-address-为-key">6.1 连接池：以 address 为 key</h3>
+<p><code>Manager</code>（<code>pkg/api/grpc/manager/manager.go:64-75</code>）维护两个池：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">type</span> Manager <span style="color:#8be9fd;font-style:italic">struct</span> {
+</span></span><span style="display:flex;"><span>	remoteConns   <span style="color:#ff79c6">*</span>RemoteConnectionPool   <span style="color:#6272a4">// sidecar ↔ sidecar，按地址索引</span>
+</span></span><span style="display:flex;"><span>	mode          modes.DaprMode
+</span></span><span style="display:flex;"><span>	channelConfig <span style="color:#ff79c6">*</span>AppChannelConfig
+</span></span><span style="display:flex;"><span>	localConn     <span style="color:#ff79c6">*</span>ConnectionPool         <span style="color:#6272a4">// daprd → 本地 App</span>
+</span></span><span style="display:flex;"><span>	localConnLock sync.RWMutex
+</span></span><span style="display:flex;"><span>	sec           security.Handler        <span style="color:#6272a4">// mTLS 的唯一注入点</span>
+</span></span><span style="display:flex;"><span>	wg            sync.WaitGroup
+</span></span><span style="display:flex;"><span>	closed        atomic.Bool
+</span></span><span style="display:flex;"><span>	closeCh       <span style="color:#8be9fd;font-style:italic">chan</span> <span style="color:#8be9fd;font-style:italic">struct</span>{}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>远端池是 <code>sync.Map</code>，<strong>key 就是纯 <code>address</code> 字符串（<code>host:port</code>）</strong>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (p <span style="color:#ff79c6">*</span>RemoteConnectionPool) <span style="color:#50fa7b">loadOrStoreItem</span>(address <span style="color:#8be9fd">string</span>) <span style="color:#ff79c6">*</span>ConnectionPool {
+</span></span><span style="display:flex;"><span>	item, ok <span style="color:#ff79c6">:=</span> p.pool.<span style="color:#50fa7b">Load</span>(address)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> !ok {
+</span></span><span style="display:flex;"><span>		<span style="color:#6272a4">// Use LoadOrStore here in case another goroutine is in the exact same spot</span>
+</span></span><span style="display:flex;"><span>		item, _ = p.pool.<span style="color:#50fa7b">LoadOrStore</span>(address, <span style="color:#50fa7b">NewConnectionPool</span>(maxConnIdle, <span style="color:#bd93f9">0</span>))
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> item.(<span style="color:#ff79c6">*</span>ConnectionPool)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>单地址池内用<strong>引用计数</strong>近似&quot;这条连接上并发了多少 RPC&quot;（<code>pool.go:121-146</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">const</span> grpcMaxConcurrentStreams = <span style="color:#bd93f9">100</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (p <span style="color:#ff79c6">*</span>ConnectionPool) <span style="color:#50fa7b">doShare</span>() grpc.ClientConnInterface {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">for</span> i <span style="color:#ff79c6">:=</span> <span style="color:#ff79c6">range</span> <span style="color:#8be9fd;font-style:italic">len</span>(p.connections) {
+</span></span><span style="display:flex;"><span>		<span style="color:#6272a4">// Check if the connection is still valid first</span>
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> atomic.<span style="color:#50fa7b">LoadInt32</span>(<span style="color:#ff79c6">&amp;</span>p.connections[i].referenceCount) <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&amp;&amp;</span> p.connections[i].<span style="color:#50fa7b">Expired</span>(p.maxConnIdle) {
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">continue</span>
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		count <span style="color:#ff79c6">:=</span> atomic.<span style="color:#50fa7b">AddInt32</span>(<span style="color:#ff79c6">&amp;</span>p.connections[i].referenceCount, <span style="color:#bd93f9">1</span>)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> count <span style="color:#ff79c6">&lt;=</span> grpcMaxConcurrentStreams {
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">return</span> p.connections[i].conn
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		atomic.<span style="color:#50fa7b">AddInt32</span>(<span style="color:#ff79c6">&amp;</span>p.connections[i].referenceCount, <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>注意 <code>grpcMaxConcurrentStreams = 100</code> <strong>不是 gRPC 真实的 stream 上限</strong>，而是 Dapr 自己维护的引用计数阈值（对齐 gRPC 服务端 HTTP/2 默认并发流数）。超过就新建一条连接。</p>
+<p><code>Get</code> 用两级锁 + double-check 避免并发重复建连（<code>pool.go:52-83</code>）：先读锁下 <code>doShare()</code>，失败后升级写锁再查一次，仍失败才 <code>createFn()</code>。</p>
+<p><strong>没有健康检查机制</strong>——只有基于时间戳的空闲淘汰（3 分钟）和一个每 45 秒跑一次的 <code>StartCollector</code> 清理协程。链路活性完全交给 gRPC keepalive。</p>
+<h3 id="62-dial-options-与负载均衡">6.2 dial options 与负载均衡</h3>
+<p><code>connectRemote</code>（<code>manager.go:196-235</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span>opts <span style="color:#ff79c6">:=</span> <span style="color:#8be9fd;font-style:italic">make</span>([]grpc.DialOption, <span style="color:#bd93f9">0</span>, <span style="color:#bd93f9">4</span><span style="color:#ff79c6">+</span><span style="color:#8be9fd;font-style:italic">len</span>(customOpts))
+</span></span><span style="display:flex;"><span>opts = <span style="color:#8be9fd;font-style:italic">append</span>(opts,
+</span></span><span style="display:flex;"><span>	grpc.<span style="color:#50fa7b">WithDefaultServiceConfig</span>(grpcServiceConfig),          <span style="color:#6272a4">// {&#34;loadBalancingPolicy&#34;:&#34;round_robin&#34;}</span>
+</span></span><span style="display:flex;"><span>	g.sec.<span style="color:#50fa7b">GRPCDialOptionMTLSUnknownTrustDomain</span>(namespace, id), <span style="color:#6272a4">// ← mTLS 注入点</span>
+</span></span><span style="display:flex;"><span>	grpc.<span style="color:#50fa7b">WithKeepaliveParams</span>(grpcKeepalive.ClientParameters{
+</span></span><span style="display:flex;"><span>		Time: <span style="color:#bd93f9">10</span> <span style="color:#ff79c6">*</span> time.Second,          <span style="color:#6272a4">// Ping the server every 10s if there&#39;s no activity</span>
+</span></span><span style="display:flex;"><span>		Timeout: <span style="color:#bd93f9">5</span> <span style="color:#ff79c6">*</span> time.Second,        <span style="color:#6272a4">// Wait 5s for the ping ACK before assuming the connection is dead</span>
+</span></span><span style="display:flex;"><span>		PermitWithoutStream: <span style="color:#ff79c6">true</span>,       <span style="color:#6272a4">// Send pings even without active streams</span>
+</span></span><span style="display:flex;"><span>	}),
+</span></span><span style="display:flex;"><span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">if</span> diag.DefaultGRPCMonitoring.<span style="color:#50fa7b">IsEnabled</span>() {
+</span></span><span style="display:flex;"><span>	opts = <span style="color:#8be9fd;font-style:italic">append</span>(opts,
+</span></span><span style="display:flex;"><span>		grpc.<span style="color:#50fa7b">WithUnaryInterceptor</span>(diag.DefaultGRPCMonitoring.<span style="color:#50fa7b">UnaryClientInterceptor</span>()),
+</span></span><span style="display:flex;"><span>	)
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>opts = <span style="color:#8be9fd;font-style:italic">append</span>(opts, customOpts<span style="color:#ff79c6">...</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>dialPrefix <span style="color:#ff79c6">:=</span> <span style="color:#50fa7b">GetDialAddressPrefix</span>(g.mode)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ctx, cancel <span style="color:#ff79c6">:=</span> context.<span style="color:#50fa7b">WithTimeout</span>(parentCtx, dialTimeout)   <span style="color:#6272a4">// 30s</span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">defer</span> <span style="color:#50fa7b">cancel</span>()
+</span></span><span style="display:flex;"><span>conn, err = grpc.<span style="color:#50fa7b">DialContext</span>(ctx, dialPrefix<span style="color:#ff79c6">+</span>address, opts<span style="color:#ff79c6">...</span>)
+</span></span></code></pre></div><p><code>dialPrefix</code> 是关键（<code>dial.go:22-31</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> <span style="color:#50fa7b">GetDialAddressPrefix</span>(mode modes.DaprMode) <span style="color:#8be9fd">string</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">switch</span> mode {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">case</span> modes.KubernetesMode:
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#f1fa8c">&#34;dns:///&#34;</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">default</span>:
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#f1fa8c">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong><code>dns:///</code> 前缀让 gRPC 接管 DNS 解析并启用客户端负载均衡</strong>，而不是让 Go 的 <code>net.Dial</code> 解析成单个 IP。配合前面 Operator 创建的 headless Service，DNS 返回多个 Pod IP，gRPC 的 round_robin 就能在它们之间分摊。</p>
+<p>于是形成了<strong>两级负载均衡</strong>：</p>
+<ol>
+<li><code>AddressList.Pick()</code>：在多个解析结果间随机选一个（对 mDNS 有效）</li>
+<li>gRPC <code>round_robin</code>：在 DNS 返回的多个 IP 间轮询（对 K8s headless service 有效）</li>
+</ol>
+<p>另外注意：<strong>没有 <code>WithBlock</code></strong>，dial 是 lazy 的，所以 <code>createFn()</code> 虽然持有写锁，但持锁时间很短。</p>
+<h3 id="63-mtls-与-spiffe">6.3 mTLS 与 SPIFFE</h3>
+<p>mTLS 的注入只有一个点：<code>g.sec.GRPCDialOptionMTLSUnknownTrustDomain(namespace, id)</code>。</p>
+<p>SPIFFE ID 格式（<code>pkg/security/spiffe/spiffe.go:61-78</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> <span style="color:#50fa7b">FromStrings</span>(td spiffeid.TrustDomain, namespace, appID <span style="color:#8be9fd">string</span>) (<span style="color:#ff79c6">*</span>Parsed, <span style="color:#8be9fd">error</span>) {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>	id, err <span style="color:#ff79c6">:=</span> spiffeid.<span style="color:#50fa7b">FromSegments</span>(td, <span style="color:#f1fa8c">&#34;ns&#34;</span>, namespace, appID)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>即 <strong><code>spiffe://&lt;trust-domain&gt;/ns/&lt;namespace&gt;/&lt;appID&gt;</code></strong>。</p>
+<p>服务调用用的是 <code>UnknownTrustDomain</code> 变体（<code>security.go:366-387</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// GRPCDialOptionMTLSUnknownTrustDomain returns a gRPC dial option which</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// instruments client authentication using the current signed client</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// certificate. Doesn&#39;t verify the servers trust domain, but does authorize the</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// SPIFFE ID path.</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// Used for clients which don&#39;t know the servers Trust Domain.</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (s <span style="color:#ff79c6">*</span>security) <span style="color:#50fa7b">GRPCDialOptionMTLSUnknownTrustDomain</span>(ns, appID <span style="color:#8be9fd">string</span>) grpc.DialOption {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> !s.mtls {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> grpc.<span style="color:#50fa7b">WithTransportCredentials</span>(insecure.<span style="color:#50fa7b">NewCredentials</span>())
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	expID <span style="color:#ff79c6">:=</span> <span style="color:#f1fa8c">&#34;/ns/&#34;</span> <span style="color:#ff79c6">+</span> ns <span style="color:#ff79c6">+</span> <span style="color:#f1fa8c">&#34;/&#34;</span> <span style="color:#ff79c6">+</span> appID
+</span></span><span style="display:flex;"><span>	matcher <span style="color:#ff79c6">:=</span> <span style="color:#8be9fd;font-style:italic">func</span>(actual spiffeid.ID) <span style="color:#8be9fd">error</span> {
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> actual.<span style="color:#50fa7b">Path</span>() <span style="color:#ff79c6">!=</span> expID {
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">return</span> fmt.<span style="color:#50fa7b">Errorf</span>(<span style="color:#f1fa8c">&#34;unexpected SPIFFE ID: %q&#34;</span>, actual)
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> grpc.<span style="color:#50fa7b">WithTransportCredentials</span>(
+</span></span><span style="display:flex;"><span>		grpccredentials.<span style="color:#50fa7b">MTLSClientCredentials</span>(s.spiffe.<span style="color:#50fa7b">X509SVIDSource</span>(), s.trustAnchors, tlsconfig.<span style="color:#50fa7b">AdaptMatcher</span>(matcher)),
+</span></span><span style="display:flex;"><span>	)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>为什么叫 &ldquo;UnknownTrustDomain&rdquo;？</strong> 因为在多集群/联邦场景下，调用方可能不知道目标 sidecar 属于哪个 trust domain。所以这里<strong>只校验 SPIFFE ID 的 path（<code>/ns/&lt;ns&gt;/&lt;appid&gt;</code>），不校验 trust domain</strong>。这是一个务实的取舍：牺牲了一部分跨信任域的隔离性，换取多集群部署的可行性。对控制面组件（Sentry、Operator、Placement）则用严格版本 <code>GRPCDialOptionMTLS</code>，用 <code>tlsconfig.AuthorizeID</code> 校验完整 ID。</p>
+<p>证书来自 Sentry。sidecar 启动时用 <strong>TLS（非 mTLS，因为此时还没有自己的证书）+ token</strong> 向 Sentry 申请证书（<code>pkg/security/sentry.go:76-131</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span>conn, err <span style="color:#ff79c6">:=</span> grpc.<span style="color:#50fa7b">DialContext</span>(ctx, <span style="color:#ff79c6">//nolint:staticcheck</span>
+</span></span><span style="display:flex;"><span>	sentryAddress,
+</span></span><span style="display:flex;"><span>	grpc.<span style="color:#50fa7b">WithTransportCredentials</span>(
+</span></span><span style="display:flex;"><span>		grpccredentials.<span style="color:#50fa7b">TLSClientCredentials</span>(trustAnchors, tlsconfig.<span style="color:#50fa7b">AuthorizeID</span>(sentryID)),
+</span></span><span style="display:flex;"><span>	),
+</span></span><span style="display:flex;"><span>	grpc.<span style="color:#50fa7b">WithUnaryInterceptor</span>(unaryClientInterceptor),
+</span></span><span style="display:flex;"><span>	grpc.<span style="color:#50fa7b">WithReturnConnectionError</span>(), <span style="color:#ff79c6">//nolint:staticcheck</span>
+</span></span><span style="display:flex;"><span>)
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>req <span style="color:#ff79c6">:=</span> <span style="color:#ff79c6">&amp;</span>sentryv1pb.SignCertificateRequest{
+</span></span><span style="display:flex;"><span>	CertificateSigningRequest: pem.<span style="color:#50fa7b">EncodeToMemory</span>(<span style="color:#ff79c6">&amp;</span>pem.Block{
+</span></span><span style="display:flex;"><span>		Type: <span style="color:#f1fa8c">&#34;CERTIFICATE REQUEST&#34;</span>, Bytes: csrDER,
+</span></span><span style="display:flex;"><span>	}),
+</span></span><span style="display:flex;"><span>	Id:             sentryIdentifier,
+</span></span><span style="display:flex;"><span>	Token:          token,
+</span></span><span style="display:flex;"><span>	Namespace:      ns,
+</span></span><span style="display:flex;"><span>	TokenValidator: tokenValidator,
+</span></span><span style="display:flex;"><span>	JwtAudiences:   opts.JwtAudiences,
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>这个&quot;先 TLS+token 换证书，再用证书做 mTLS&quot;的引导过程，是零信任体系的经典模式：<strong>用已有的信任锚（trust anchors）验证 Sentry，用平台颁发的 token（K8s ServiceAccount 或自托管 token）证明自己的身份。</strong></p>
+<p>Sentry 服务端也在本仓库（<code>pkg/sentry/server/ca/ca.go:257-285</code>），它用<strong>同一个</strong> <code>spiffe.FromStrings(td, ns, appID)</code> 构造证书，与客户端的 path 校验完全对齐。</p>
+<h3 id="64-teardowndestroy连接自愈">6.4 teardown(destroy)：连接自愈</h3>
+<p><code>GetGRPCConnection</code> 返回的第二个值是 <code>teardown func(destroy bool)</code>：</p>
+<table>
+  <thead>
+      <tr>
+          <th>调用</th>
+          <th>效果</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>teardown(false)</code></td>
+          <td>引用计数 -1，归零时 <code>MarkIdle()</code>，<strong>连接保留复用</strong></td>
+      </tr>
+      <tr>
+          <td><code>teardown(true)</code></td>
+          <td>立即 <code>Close()</code> 并从池中剔除，强制下次重建</td>
+      </tr>
+  </tbody>
+</table>
+<p><code>destroy=true</code> 只在一个地方触发——<code>Unavailable</code>/<code>Unauthenticated</code> 错误（<code>direct_messaging.go:252-259</code>）。这让故障连接能被快速淘汰，而不必等待 3 分钟的空闲超时。</p>
+<h2 id="七目标-sidecaracl-与本地交付">七、目标 sidecar：ACL 与本地交付</h2>
+<h3 id="71-calllocalstream">7.1 CallLocalStream</h3>
+<p>目标 sidecar 的入口（<code>pkg/api/grpc/daprinternal.go:85</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// CallLocalStream is a variant of CallLocal that uses gRPC streams to send data in chunks, rather than in an unary RPC.</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (a <span style="color:#ff79c6">*</span>api) <span style="color:#50fa7b">CallLocalStream</span>(stream internalv1pb.ServiceInvocation_CallLocalStreamServer) <span style="color:#8be9fd">error</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Create the request object</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// The &#34;rawData&#34; of the object will be a pipe to which content is added chunk-by-chunk</span>
+</span></span><span style="display:flex;"><span>	pr, pw <span style="color:#ff79c6">:=</span> io.<span style="color:#50fa7b">Pipe</span>()
+</span></span><span style="display:flex;"><span>	req, err <span style="color:#ff79c6">:=</span> invokev1.<span style="color:#50fa7b">FromInternalInvokeRequest</span>(chunk.<span style="color:#50fa7b">GetRequest</span>())
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>	req.<span style="color:#50fa7b">WithRawData</span>(pr).<span style="color:#50fa7b">WithContentType</span>(chunk.<span style="color:#50fa7b">GetRequest</span>().<span style="color:#50fa7b">GetMessage</span>().<span style="color:#50fa7b">GetContentType</span>())
+</span></span></code></pre></div><p>用 <code>io.Pipe</code> 边收边转发，<strong>不缓冲完整 body</strong>。这就是流式服务调用的实现基础。</p>
+<h3 id="72-acl身份来自证书不是-header">7.2 ACL：身份来自证书，不是 header</h3>
+<p>这是本文最需要澄清的一个安全细节。</p>
+<p>调用方会在 metadata 里写入 caller 身份（<code>direct_messaging.go:559-569</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (d <span style="color:#ff79c6">*</span>directMessaging) <span style="color:#50fa7b">addCallerAndCalleeAppIDHeaderToMetadata</span>(callerNamespace, callerAppID, calleeAppID <span style="color:#8be9fd">string</span>, req <span style="color:#ff79c6">*</span>invokev1.InvokeMethodRequest) {
+</span></span><span style="display:flex;"><span>	req.<span style="color:#50fa7b">Metadata</span>()[invokev1.CallerNamespaceHeader] = <span style="color:#ff79c6">&amp;</span>internalv1pb.ListStringValue{Values: []<span style="color:#8be9fd">string</span>{callerNamespace}}
+</span></span><span style="display:flex;"><span>	req.<span style="color:#50fa7b">Metadata</span>()[invokev1.CallerIDHeader] = <span style="color:#ff79c6">&amp;</span>internalv1pb.ListStringValue{Values: []<span style="color:#8be9fd">string</span>{callerAppID}}
+</span></span><span style="display:flex;"><span>	req.<span style="color:#50fa7b">Metadata</span>()[invokev1.CalleeIDHeader] = <span style="color:#ff79c6">&amp;</span>internalv1pb.ListStringValue{Values: []<span style="color:#8be9fd">string</span>{calleeAppID}}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>但这些 header 不用于鉴权。</strong> ACL 实际使用的是 mTLS 对端证书里的 SPIFFE ID（<code>pkg/acl/acl.go:142-158</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> <span style="color:#50fa7b">ApplyAccessControlPolicies</span>(ctx context.Context, operation <span style="color:#8be9fd">string</span>, httpVerb commonv1pb.HTTPExtension_Verb, isHTTP <span style="color:#8be9fd">bool</span>, acl <span style="color:#ff79c6">*</span>config.AccessControlList) (<span style="color:#8be9fd">bool</span>, <span style="color:#8be9fd">string</span>) {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Apply access control list filter</span>
+</span></span><span style="display:flex;"><span>	spiffeID, ok, err <span style="color:#ff79c6">:=</span> spiffe.<span style="color:#50fa7b">FromGRPCContext</span>(ctx)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> err <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		log.<span style="color:#50fa7b">Debugf</span>(<span style="color:#f1fa8c">&#34;failed to get SPIFFE ID from gRPC connection context: %v&#34;</span>, err)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">return</span> <span style="color:#ff79c6">false</span>, err.<span style="color:#50fa7b">Error</span>()
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> !ok {
+</span></span><span style="display:flex;"><span>		<span style="color:#6272a4">// Apply the default action</span>
+</span></span><span style="display:flex;"><span>		log.<span style="color:#50fa7b">Debugf</span>(<span style="color:#f1fa8c">&#34;Error while reading spiffe id from client cert. applying default global policy action&#34;</span>)
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	action, actionPolicy <span style="color:#ff79c6">:=</span> <span style="color:#50fa7b">isOperationAllowedByAccessControlPolicy</span>(spiffeID, operation, httpVerb, isHTTP, acl)
+</span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">emitACLMetrics</span>(spiffeID, actionPolicy, action)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>而 <code>spiffe.FromGRPCContext</code> 读的是 <code>grpccredentials.PeerIDFromContext(ctx)</code>（<code>spiffe.go:35-59</code>），即 <strong>gRPC 从 TLS 握手结果中提取的对端证书身份</strong>。</p>
+<p><strong>这个区别至关重要</strong>：<code>dapr-caller-app-id</code> 是调用方自己填的，可以被伪造；SPIFFE ID 来自双向 TLS 握手，由 Sentry 签发的证书保证，无法伪造。Dapr 把 metadata 里的 caller ID 只用于 metrics 的 <code>src_app_id</code> 标签（见 <code>callLocalRecordRequest</code>），鉴权一律走证书身份。</p>
+<p><strong>由此推出一个重要的运维结论：关闭 mTLS 时，ACL 会失效。</strong> 因为 <code>GRPCDialOptionMTLSUnknownTrustDomain</code> 在 <code>!s.mtls</code> 时返回 <code>insecure.NewCredentials()</code>，服务端拿不到 peer ID，<code>spiffeID</code> 为 nil，ACL 直接回退到全局默认动作（<code>acl.go:198-204</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#ff79c6">if</span> spiffeID <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Could not retrieve spiffe id or it is invalid. Apply global default action</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> <span style="color:#50fa7b">isActionAllowed</span>(action), actionPolicy
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>ACL 与 mTLS 是绑定关系，不是两个独立的安全特性。</strong></p>
+<h3 id="73-方法名规范化纵深防御">7.3 方法名规范化：纵深防御</h3>
+<p>ACL 判定前会再做一次方法名规范化（<code>daprinternal.go:391-422</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// Used by CallLocal and CallLocalStream to check the request against the access control list.</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// The method is normalized (forbidden characters rejected, path traversal resolved) as</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// defense-in-depth before ACL evaluation. The normalized form is written back to the</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// request so dispatch uses the same canonical string.</span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (a <span style="color:#ff79c6">*</span>api) <span style="color:#50fa7b">callLocalValidateACL</span>(ctx context.Context, req <span style="color:#ff79c6">*</span>invokev1.InvokeMethodRequest) <span style="color:#8be9fd">error</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// Normalize method as defense-in-depth (caller should have already normalized).</span>
+</span></span><span style="display:flex;"><span>	operation <span style="color:#ff79c6">:=</span> req.<span style="color:#50fa7b">Message</span>().<span style="color:#50fa7b">GetMethod</span>()
+</span></span><span style="display:flex;"><span>	normalized, err <span style="color:#ff79c6">:=</span> method.<span style="color:#50fa7b">NormalizeMethod</span>(operation)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">...</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> a.accessControlList <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		<span style="color:#8be9fd;font-style:italic">var</span> httpVerb commonv1pb.HTTPExtension_Verb <span style="color:#ff79c6">//nolint:nosnakecase</span>
+</span></span><span style="display:flex;"><span>		<span style="color:#6272a4">// Get the HTTP verb in case the application protocol is &#34;http&#34;</span>
+</span></span><span style="display:flex;"><span>		appProtocolIsHTTP <span style="color:#ff79c6">:=</span> a.<span style="color:#50fa7b">AppConnectionConfig</span>().Protocol.<span style="color:#50fa7b">IsHTTP</span>()
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> appProtocolIsHTTP <span style="color:#ff79c6">&amp;&amp;</span> req.<span style="color:#50fa7b">Metadata</span>() <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> <span style="color:#ff79c6">&amp;&amp;</span> <span style="color:#8be9fd;font-style:italic">len</span>(req.<span style="color:#50fa7b">Metadata</span>()) &gt; <span style="color:#bd93f9">0</span> {
+</span></span><span style="display:flex;"><span>			httpExt <span style="color:#ff79c6">:=</span> req.<span style="color:#50fa7b">Message</span>().<span style="color:#50fa7b">GetHttpExtension</span>()
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">if</span> httpExt <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>				httpVerb = httpExt.<span style="color:#50fa7b">GetVerb</span>()
+</span></span><span style="display:flex;"><span>			}
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		callAllowed, errMsg <span style="color:#ff79c6">:=</span> acl.<span style="color:#50fa7b">ApplyAccessControlPolicies</span>(ctx, operation, httpVerb, appProtocolIsHTTP, a.accessControlList)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> !callAllowed {
+</span></span><span style="display:flex;"><span>			<span style="color:#ff79c6">return</span> status.<span style="color:#50fa7b">Error</span>(codes.PermissionDenied, errMsg)
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> <span style="color:#ff79c6">nil</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>注意 <code>// defense-in-depth (caller should have already normalized)</code> 这句注释——<strong>方法名在发起侧已经规范化过一次（<code>Invoke</code> 开头），这里再规范一次</strong>。为什么要重复？因为 sidecar 可能被旧版本或恶意客户端直接调用，不能假设上游做过。这就是纵深防御（defense-in-depth）：<strong>跨越信任边界时，不信任任何上游的预处理结果。</strong></p>
+<p><code>NormalizeMethod</code>（<code>pkg/messaging/method/normalize.go</code>）拒绝 <code>#</code>、<code>?</code>、空字节和控制字符，然后用 <code>path.Clean</code> 解析 <code>../</code> 路径穿越，最后处理 <code>path.Clean</code> 在相对路径下的边界情况。</p>
+<p>ACL 匹配时会同时校验 trust domain 和 namespace（<code>acl.go:213-220</code>），并且操作名统一补 <code>/</code> 前缀后匹配，避免 <code>/foo</code> 与 <code>foo</code> 的不一致。</p>
+<h2 id="八可观测性span-与-metric-在哪里产生">八、可观测性：span 与 metric 在哪里产生</h2>
+<h3 id="81-链路追踪">8.1 链路追踪</h3>
+<p><strong>Dapr 没有为服务调用写专门的 tracing middleware</strong>，span 由通用的 HTTP/gRPC middleware 创建，通过 endpoint 元数据定制。</p>
+<p>HTTP 侧（<code>pkg/api/http/directmessaging.go:50-60</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> <span style="color:#50fa7b">appendDirectMessagingSpanAttributes</span>(r <span style="color:#ff79c6">*</span>http.Request, m <span style="color:#8be9fd;font-style:italic">map</span>[<span style="color:#8be9fd">string</span>]<span style="color:#8be9fd">string</span>) {
+</span></span><span style="display:flex;"><span>	endpointData, _ <span style="color:#ff79c6">:=</span> r.<span style="color:#50fa7b">Context</span>().<span style="color:#50fa7b">Value</span>(endpoints.EndpointCtxKey{}).(<span style="color:#ff79c6">*</span>endpoints.EndpointCtxData)
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">if</span> endpointData <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> <span style="color:#ff79c6">&amp;&amp;</span> endpointData.SpanData <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>		spanData, _ <span style="color:#ff79c6">:=</span> endpointData.SpanData.(<span style="color:#ff79c6">*</span>directMessagingSpanData)
+</span></span><span style="display:flex;"><span>		<span style="color:#ff79c6">if</span> spanData <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">nil</span> {
+</span></span><span style="display:flex;"><span>			m[diagConsts.GrpcServiceSpanAttributeKey] = <span style="color:#f1fa8c">&#34;ServiceInvocation&#34;</span>
+</span></span><span style="display:flex;"><span>			m[diagConsts.NetPeerNameSpanAttributeKey] = spanData.AppID
+</span></span><span style="display:flex;"><span>			m[diagConsts.DaprAPISpanNameInternal] = <span style="color:#f1fa8c">&#34;CallLocal/&#34;</span> <span style="color:#ff79c6">+</span> spanData.AppID <span style="color:#ff79c6">+</span> <span style="color:#f1fa8c">&#34;/&#34;</span> <span style="color:#ff79c6">+</span> spanData.Method
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Handler 把 <code>targetID</code> 和 <code>method</code> 存进 context，middleware 在响应前读取并<strong>重命名 span</strong>。最终 span 名是 <code>CallLocal/&lt;targetAppID&gt;/&lt;method&gt;</code>。</p>
+<p>这是一个巧妙的解耦：handler 知道业务语义（目标是谁、调什么方法），middleware 知道 tracing（何时结束 span、怎么设状态），两者通过 context 里的一个结构体交换信息，<strong>handler 完全不 import 任何 tracing 包</strong>。</p>
+<p>发起方传播 trace context（<code>direct_messaging.go:283-288</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">func</span> (d <span style="color:#ff79c6">*</span>directMessaging) <span style="color:#50fa7b">setContextSpan</span>(ctx context.Context) context.Context {
+</span></span><span style="display:flex;"><span>	span <span style="color:#ff79c6">:=</span> diagUtils.<span style="color:#50fa7b">SpanFromContext</span>(ctx)
+</span></span><span style="display:flex;"><span>	ctx = diag.<span style="color:#50fa7b">SpanContextToGRPCMetadata</span>(ctx, span.<span style="color:#50fa7b">SpanContext</span>())
+</span></span><span style="display:flex;"><span>	<span style="color:#ff79c6">return</span> ctx
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><code>SpanContextToGRPCMetadata</code>（<code>grpc_tracing.go:322-332</code>）同时写 <code>traceparent</code>（W3C 字符串）和 <code>grpc-trace-bin</code>（二进制）。目标端 interceptor 优先读 <code>grpc-trace-bin</code>，失败才回退 <code>traceparent</code>（<code>grpc_tracing.go:292-320</code>）。</p>
+<p>Span kind 的判定很有意思（<code>grpc_tracing.go:80-144</code>）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#ff79c6">if</span> strings.<span style="color:#50fa7b">HasPrefix</span>(info.FullMethod, daprInternalPrefix) {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// For the dapr.proto.internals package, this generates ServerSpan.</span>
+</span></span><span style="display:flex;"><span>	spanKind = trace.<span style="color:#50fa7b">WithSpanKind</span>(trace.SpanKindServer)
+</span></span><span style="display:flex;"><span>} <span style="color:#ff79c6">else</span> {
+</span></span><span style="display:flex;"><span>	<span style="color:#6272a4">// For the dapr.proto.runtime package, this generates ClientSpan.</span>
+</span></span><span style="display:flex;"><span>	spanKind = trace.<span style="color:#50fa7b">WithSpanKind</span>(trace.SpanKindClient)
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>同一个 interceptor 同时服务 internal gRPC（sidecar 间）和 runtime API（应用到 sidecar），靠方法前缀区分 span 语义。</p>
+<h3 id="82-指标">8.2 指标</h3>
+<p>服务调用有专门的指标（<code>pkg/diagnostics/service_monitoring.go:203-223</code>）：</p>
+<table>
+  <thead>
+      <tr>
+          <th>measure</th>
+          <th>含义</th>
+          <th>labels</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>runtime/service_invocation/req_sent_total</code></td>
+          <td>发出请求数</td>
+          <td><code>app_id</code>, <code>dst_app_id</code>, <code>type</code></td>
+      </tr>
+      <tr>
+          <td><code>runtime/service_invocation/req_recv_total</code></td>
+          <td>收到请求数</td>
+          <td><code>app_id</code>, <code>src_app_id</code></td>
+      </tr>
+      <tr>
+          <td><code>runtime/service_invocation/res_sent_total</code></td>
+          <td>发出响应数</td>
+          <td><code>app_id</code>, <code>dst_app_id</code>, <code>status</code></td>
+      </tr>
+      <tr>
+          <td><code>runtime/service_invocation/res_recv_total</code></td>
+          <td>收到响应数</td>
+          <td><code>app_id</code>, <code>src_app_id</code>, <code>status</code>, <code>type</code></td>
+      </tr>
+      <tr>
+          <td><code>runtime/service_invocation/res_recv_latency_ms</code></td>
+          <td>响应延迟</td>
+          <td><code>app_id</code>, <code>src_app_id</code>, <code>status</code></td>
+      </tr>
+  </tbody>
+</table>
+<p>调用点：</p>
+<ul>
+<li><code>ServiceInvocationRequestSent</code>：<code>direct_messaging.go:295</code>（HTTP endpoint）、<code>:333</code>（远端 gRPC）</li>
+<li><code>ServiceInvocationResponseReceived</code>：<code>direct_messaging.go:304</code>、<code>:341</code></li>
+<li><code>ServiceInvocationRequestReceived</code> / <code>ResponseSent</code>：<code>daprinternal.go:424-443</code> / <code>:66-68</code>、<code>:134-137</code></li>
+</ul>
+<p><strong>一个值得注意的实现事实</strong>：<code>ServiceInvocationRequestReceived</code> 只在 ACL 校验通过之后才记录（<code>CallLocal</code> 中先 <code>callLocalValidateACL</code> 再 <code>callLocalRecordRequest</code>）。也就是说被 ACL 拒绝的请求<strong>不会</strong>计入 <code>req_recv_total</code>——统计的是&quot;被接受的请求&quot;而非&quot;到达的请求&quot;。</p>
+<h3 id="83-http-中间件装配顺序">8.3 HTTP 中间件装配顺序</h3>
+<p><code>pkg/api/http/server.go:104-113</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span>r <span style="color:#ff79c6">:=</span> s.<span style="color:#50fa7b">getRouter</span>()          <span style="color:#6272a4">// CleanPathMiddleware, StripSlashesMiddleware</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">useMaxBodySize</span>(r)         <span style="color:#6272a4">// 1. 请求体大小限制</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">useContextSetup</span>(r)        <span style="color:#6272a4">// 2. 注入空的 EndpointCtxData</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">useTracing</span>(r)             <span style="color:#6272a4">// 3. 链路追踪</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">useMetrics</span>(r)             <span style="color:#6272a4">// 4. 指标</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">useCors</span>(r)                <span style="color:#6272a4">// 5. CORS</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">useAPIAuthentication</span>(r)   <span style="color:#6272a4">// 6. API Token 认证（必须在 CORS 之后）</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">useComponents</span>(r)          <span style="color:#6272a4">// 7. 组件中间件（如 OAuth2）</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">useAPILogging</span>(r)          <span style="color:#6272a4">// 8. API 日志</span>
+</span></span><span style="display:flex;"><span>s.<span style="color:#50fa7b">setupRoutes</span>(r, s.api.<span style="color:#50fa7b">APIEndpoints</span>())
+</span></span></code></pre></div><p><code>useContextSetup</code> 排在 tracing/metrics 之前不是随意的——注释写得很清楚：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#6272a4">// Adds an empty `endpoints.EndpointCtxData` value to the context so it can be later set by the handler</span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// This context value is used by the logging, tracing, and metrics middlewares</span>
+</span></span></code></pre></div><p>handler 往这个容器里填数据，外层 middleware 在响应前读取。<strong>这是一种&quot;反向数据流&quot;</strong>：内层填充、外层消费，避免了 middleware 层需要理解每个 endpoint 的业务语义。</p>
+<p>gRPC 侧的 server interceptor 链（<code>pkg/api/grpc/server.go:281-335</code>）则是：metadata 注入 → API allowlist → token 认证 → tracing → metrics → API logging。</p>
+<h2 id="九完整时序">九、完整时序</h2>
+<p>把以上所有环节串起来（HTTP → HTTP 场景，跨节点）：</p>
+<pre tabindex="0"><code>【App A】
+  │ POST /v1.0/invoke/appB/method/orders
+  ▼
+【sidecar A - 中间件链】
+  MaxBodySize → ContextSetup → Tracing(创建 client span) → Metrics → CORS → Auth → Components → Logging
+  ▼
+【sidecar A - 入口层】 pkg/api/http/directmessaging.go:97 onDirectMessage
+  ├─ findTargetIDAndMethod：解析 targetID=appB, method=orders（用解码后的 Path）
+  ├─ 写入 SpanData{AppID, Method} 到 EndpointCtxData   ← 供 tracing 重命名 span
+  ├─ 构造 InvokeMethodRequest：HTTPExtension(POST, RawQuery) + RawData(r.Body) + Headers→Metadata
+  ├─ ContentLength &lt; 0 ? → SetStreamingRequest()（禁用重放与重试）
+  ├─ policyDef.HasRetries() ? → req.WithReplay(true)
+  └─ resiliency Runner 包裹 → directMessaging.Invoke(ctx, &#34;appB&#34;, req)
+  ▼
+【sidecar A - 路由层】 direct_messaging.go:163 Invoke
+  ├─ method.NormalizeMethod(orders)                     ← 第 1 次规范化
+  ├─ requestAppIDAndNamespace(&#34;appB&#34;) → (appB, 当前 ns)
+  └─ getRemoteApp → 服务发现
+       ├─ resolverMulti != nil ? → cache.Get(ns/appB/port) → Pick() → 命中返回
+       │                          └ 未命中 → ResolveIDMulti → Pick() → cache.Set(TTL 20s)
+       └─ 否则 → ResolveID + 空地址时 100ms×5 重试
+  ▼
+【sidecar A - 执行层】 direct_messaging.go:227 invokeWithRetry
+  ├─ 用户已定义策略 或 流式请求 ? → 跳过内建重试
+  ├─ req.WithReplay(true)
+  └─ Runner[Constant, 3 次, 1s] 包裹 invokeRemote
+  ▼
+【sidecar A - 传输层】 direct_messaging.go:311 invokeRemote
+  ├─ GetGRPCConnection(ctx, addr, appB, ns)
+  │    ├─ RemoteConnectionPool.Get(addr)：引用计数 ≤100 且未空闲超 3min → 复用
+  │    └─ 否则 connectRemote：
+  │         ├─ WithDefaultServiceConfig(round_robin)
+  │         ├─ GRPCDialOptionMTLSUnknownTrustDomain(ns, appB)
+  │         │    └─ 校验对端证书 SPIFFE path == /ns/&lt;ns&gt;/appB（不校验 trust domain）
+  │         ├─ Keepalive(10s/5s/PermitWithoutStream)
+  │         └─ DialContext(&#34;dns:///&#34;+addr)，30s 超时
+  ├─ setContextSpan：写入 traceparent + grpc-trace-bin
+  ├─ addForwardedHeadersToMetadata / addDestinationAppIDHeaderToMetadata
+  ├─ addCallerAndCalleeAppIDHeaderToMetadata(dapr-caller-app-id / dapr-callee-app-id)
+  ├─ diag.ServiceInvocationRequestSent(appB)
+  └─ invokeRemoteStream → CallLocalStream（2KB 分块流式发送）
+       └─ 收到 Unimplemented 且 CanReplay() ? → 降级 invokeRemoteUnary → CallLocal
+  ▼
+════════════════ gRPC over mTLS（sidecar A → sidecar B）════════════════
+  ▼
+【sidecar B - 交付层】 pkg/api/grpc/daprinternal.go:85 CallLocalStream
+  ├─ gRPC stream interceptor：提取 trace context → 创建 Server span
+  ├─ 收首个 chunk，方法名写入 __dapr_calllocalstream_method（供 span 命名）
+  ├─ callLocalValidateACL：
+  │    ├─ method.NormalizeMethod 再规范化一次                 ← 第 2 次（纵深防御）
+  │    └─ ApplyAccessControlPolicies：
+  │         └─ spiffe.FromGRPCContext(ctx)  ← 身份来自 mTLS 对端证书，非 metadata
+  │              └─ 校验 trust domain / namespace / operation / verb
+  │                 └─ 失败 → PermissionDenied（且不计入 req_recv_total）
+  ├─ callLocalRecordRequest → ServiceInvocationRequestReceived(callerAppID)
+  ├─ io.Pipe 边收边转发 → appChannel.InvokeMethod
+  └─ defer ServiceInvocationResponseSent(callerAppID, statusCode)
+  ▼
+【App B】处理业务
+  ▼
+【回程】响应沿原路流式返回 → InternalMetadata→HTTP Header 转换
+       （traceparent/tracestate 单独处理，剥离 hop-by-hop 头）
+       → io.Copy 到 flushWriter 或 SSE 分支
+</code></pre><h2 id="十设计亮点与可借鉴之处">十、设计亮点与可借鉴之处</h2>
+<p>通读整条链路，有几个决策值得在自己的系统里借鉴：</p>
+<p><strong>1. 用&quot;内部统一表示&quot;消化协议差异。</strong><br>
+HTTP header 与 gRPC metadata 统一成 <code>map[string]*ListStringValue</code>，sidecar 间那一段完全不感知上游协议。这让&quot;支持 N 种入口协议 × M 种出口协议&quot;的成本从 N×M 降到 N+M。这是所有网关/代理类系统的通用范式。</p>
+<p><strong>2. 极窄的接口切断耦合。</strong><br>
+<code>DirectMessaging</code> 只有一个方法。HTTP API、gRPC API、actors、proxy 四种上层都依赖它，四种下层实现（本地、远端、HTTP endpoint、gRPC proxy）都实现它。想加一种新入口或新后端，改动面都极小。</p>
+<p><strong>3. 用类型断言做向后兼容的能力升级。</strong><br>
+<code>ResolverMulti</code> 是可选接口，老组件零改动继续工作，新组件实现后自动获得多地址 + 缓存能力。比给接口加方法（破坏所有实现）或加配置项（要写文档、要用户改配置）都优雅。</p>
+<p><strong>4. 重试只对&quot;重试可能成功&quot;的错误生效。</strong><br>
+只重试 <code>Unavailable</code> 和 <code>Unauthenticated</code>，其余立即 <code>backoff.Permanent</code>。配合&quot;销毁连接 + 删除解析缓存&quot;形成自愈闭环。这是防止重试风暴的关键设计。</p>
+<p><strong>5. 跨越信任边界时重新校验，不信任上游。</strong><br>
+方法名在发起侧规范化一次，在接收侧 ACL 判定前再规范化一次。注释明确写了 <code>defense-in-depth</code>。安全校验不能假设上游做过。</p>
+<p><strong>6. 鉴权身份必须来自密码学证据，不能来自可伪造的字段。</strong><br>
+ACL 用 mTLS 证书里的 SPIFFE ID，而不是调用方自己填的 <code>dapr-caller-app-id</code> header。后者只用于 metrics。这个区分在很多自研系统里会被忽略，从而留下越权漏洞。</p>
+<p><strong>7. Handler 填数据、Middleware 消费数据的反向数据流。</strong><br>
+handler 往 context 塞 <code>SpanData</code>，外层 middleware 在响应前读取用于 span 命名和日志。handler 不 import 任何 tracing 包，middleware 不理解任何业务语义。</p>
+<p><strong>8. 延迟决策：能不缓冲就不缓冲。</strong><br>
+流式请求（<code>ContentLength &lt; 0</code>）自动禁用重放和重试，用 <code>io.Pipe</code> 边收边转发。宁可放弃重试，也不把 1GB body 读进内存。</p>
+<h2 id="十一本文中源码未覆盖的部分">十一、本文中源码未覆盖的部分</h2>
+<p>为避免臆测，明确标注以下内容：</p>
+<p><strong>不在 <code>dapr/dapr</code> 主仓库：</strong></p>
+<ol>
+<li><strong>所有 Name Resolution resolver 实现</strong>（mDNS、Kubernetes、Consul、SQLite 等）——在 <code>github.com/dapr/components-contrib</code>。主仓库只有注册表（<code>pkg/components/nameresolution/registry.go</code>）、装配点（<code>cmd/daprd/components/nameresolution_*.go</code>）、测试替身和上层集成。本文对 mDNS/K8s resolver 的描述来自本地 contrib 检出（commit <code>0d6569ac</code>），与 <code>go.mod</code> 锁定的 <code>v1.18.0-rc.1</code> 可能存在细微差异。</li>
+<li><strong>证书轮换 / SVID 获取的具体实现</strong>——在 <code>github.com/dapr/kit v0.18.1</code> 的 <code>crypto/spiffe</code> 包，本仓库无 vendor 目录，无法查证轮换周期等细节。</li>
+<li><strong><code>retry.Config</code>、<code>PolicyConstant</code>、<code>NotifyRecoverWithData</code></strong>——在 <code>github.com/dapr/kit/retry</code>。</li>
+</ol>
+<p><strong>源码中未找到（已 grep 验证）：</strong><br>
+4. <strong>服务调用级别的默认超时</strong>。全仓无 <code>remoteAppTimeout</code> / <code>InvokeTimeout</code> 等标识符。旧文档的&quot;5 秒 gRPC 连接超时&quot;在当前代码中不存在。<br>
+5. <strong><code>pkg/security/spiffe.go</code></strong>——实际在 <code>pkg/security/spiffe/spiffe.go</code>。<br>
+6. <strong><code>Authenticator</code> 接口与 <code>GetSidecarAuthenticator</code> 函数</strong>——全仓零匹配，对应角色是 <code>security.Handler</code>。<br>
+7. <strong>客户端 stream interceptor 与客户端 tracing interceptor</strong>——dial 时只注入了 metrics 的 unary interceptor，tracing 走手动 metadata 注入。<br>
+8. <strong>连接池的健康检查机制</strong>——只有基于时间戳的空闲淘汰，无主动探活。<br>
+9. <strong>HTTP 侧的请求级重试次数配置</strong>——<code>invokeWithRetry</code> 的 <code>numRetries</code> / <code>backoffInterval</code> 是死参数。</p>
+<p><strong>发现的实现瑕疵（非推测，代码可验证）：</strong><br>
+10. <code>pkg/diagnostics/grpc_tracing.go:314-315</code> 中 <code>sc.WithTraceState(*ts)</code> 的返回值被丢弃。<code>SpanContext.WithTraceState</code> 是值方法，返回新 SpanContext，因此 fallback 到 <code>traceparent</code> + <code>tracestate</code> 的路径上，tracestate 实际不会被续接。<br>
+11. <code>pkg/api/http/directmessaging.go</code> 中，若 <code>handleHTTPBaggage</code> 返回错误（<code>http_tracing.go</code> 里 <code>http.Error</code> 后直接 return），已创建的 span 不会执行 <code>span.End()</code>。</p>
+<h2 id="十二总结">十二、总结</h2>
+<p>回到开头的五个问题，Dapr 的答案分别是：</p>
+<table>
+  <thead>
+      <tr>
+          <th>问题</th>
+          <th>解法</th>
+          <th>关键实现</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>服务发现</td>
+          <td>可插拔 resolver + 分层缓存</td>
+          <td><code>nr.Resolver</code> / <code>ResolverMulti</code>，20s TTL 缓存，组件内部各有策略</td>
+      </tr>
+      <tr>
+          <td>协议标准化</td>
+          <td>内部统一表示</td>
+          <td><code>Metadata</code> + <code>Message</code>，两端按需转换</td>
+      </tr>
+      <tr>
+          <td>安全</td>
+          <td>mTLS + SPIFFE + ACL</td>
+          <td>证书身份做鉴权，纵深防御式方法名规范化</td>
+      </tr>
+      <tr>
+          <td>可靠性</td>
+          <td>精准重试 + 请求重放 + 连接自愈</td>
+          <td>仅重试 <code>Unavailable</code>/<code>Unauthenticated</code>，teardown(true) 淘汰故障连接</td>
+      </tr>
+      <tr>
+          <td>可观测</td>
+          <td>通用 middleware + endpoint 元数据</td>
+          <td>特定指标 + span 重命名，handler 与 tracing 解耦</td>
+      </tr>
+  </tbody>
+</table>
+<p>如果只能记住一句话，那就是：<strong>Dapr 服务调用的本质，是把&quot;应用间的远程调用&quot;拆成&quot;应用到 sidecar 的本地调用&quot; + &ldquo;sidecar 间的统一 gRPC 调用&quot;两段，然后所有复杂性都集中在后一段的单一实现里。</strong></p>
+<p>这也是 sidecar 模式的核心价值——<strong>把 N×M 的集成问题，转化为 N+M 的适配问题。</strong></p>
+<hr>
+<p><strong>参考与验证方式</strong></p>
+<ul>
+<li>源码：<code>dapr/dapr</code> @ <code>bbb49bc81a9f3d91cf3b76bb35c868a389d3972e</code></li>
+<li>组件实现：<code>dapr/components-contrib</code> @ <code>0d6569ac</code></li>
+<li>官方文档：<a href="https://docs.dapr.io/developing-applications/building-blocks/service-invocation/service-invocation-overview">Service invocation overview</a></li>
+<li>本文所有行号均可通过 <code>git show bbb49bc8:&lt;file&gt;</code> 复核</li>
+</ul>
+
+            
+             
+            
+
+
+
+
+<link href="https://xxx.xxx.com/dist/Artalk.css" rel="stylesheet" />
+<script src="https://xxx.xxx.com/dist/Artalk.js"></script>
+
+
+<div id="Comments"></div>
+
+<script>
+    Artalk.init({
+        el: '#Comments',
+        pageKey: 'https:\/\/libaoxuan-neil.github.io\/post\/%E6%B7%B1%E5%85%A5-dapr-%E6%9C%8D%E5%8A%A1%E8%B0%83%E7%94%A8%E4%BB%8E-invoke-api-%E5%88%B0-mtls-grpc-%E9%80%9A%E9%81%93%E7%9A%84%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF\/',
+        pageTitle: '深入 Dapr 服务调用：从 invoke API 到 mTLS gRPC 通道的完整链路',
+        server: 'https:\/\/xxx.xxx.com',
+        site: 'xxx blog',
+    })
+</script>
+
+
+            
+            </div>
+            
+            
+
+<div class="
+    col-lg-3 col-lg-offset-0
+    col-md-3 col-md-offset-0
+    col-sm-12
+    col-xs-12
+    sidebar-container
+">
+    
+	
+    <section class="visible-md visible-lg">
+	
+        <div class="short-about">
+            
+            <a href="/about">
+               <img src="/img/41ec9b8f3eabfc7835663be5bcd83696.png" alt="avatar" style="cursor: pointer" />
+            </a>
+            
+            
+                <p>Software Developer</p>
+            
+           
+           <ul class="list-inline">
+               
+               <li>
+                   <a href="mailto:2086965923@qq.com">
+                      <span class="fa-stack fa-lg">
+                          <i class="fa fa-circle fa-stack-2x"></i>
+                          <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+                      </span>
+                   </a>
+               </li>
+               
+               
+               
+               
+               
+               
+               
+               <li>
+                   <a target="_blank" href="https://github.com/LiBaoxuan-Neil">
+                       <span class="fa-stack fa-lg">
+                           <i class="fas fa-circle fa-stack-2x"></i>
+                           <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                       </span>
+                   </a>
+               </li>
+               
+               
+               
+               
+               
+               
+            
+            
+               
+               
+               
+               
+                </ul>
+            </div>
+    </section>
+	
+    
+    
+    
+    
+    <section>
+        <hr class="hidden-sm hidden-xs">
+        <h5>FEATURED TAGS</h5>
+        <div class="tags">
+            
+            
+               
+                    <a href="/tags/ai-services" title="ai services">
+                        ai services
+                    </a>
+               
+            
+               
+                    <a href="/tags/api" title="api">
+                        api
+                    </a>
+               
+            
+               
+                    <a href="/tags/chat-completions" title="chat completions">
+                        chat completions
+                    </a>
+               
+            
+               
+                    <a href="/tags/cni" title="cni">
+                        cni
+                    </a>
+               
+            
+               
+                    <a href="/tags/java-ai" title="java ai">
+                        java ai
+                    </a>
+               
+            
+               
+                    <a href="/tags/jvm" title="jvm">
+                        jvm
+                    </a>
+               
+            
+               
+                    <a href="/tags/kubernetes" title="kubernetes">
+                        kubernetes
+                    </a>
+               
+            
+               
+                    <a href="/tags/langchain4j" title="langchain4j">
+                        langchain4j
+                    </a>
+               
+            
+               
+                    <a href="/tags/openai" title="openai">
+                        openai
+                    </a>
+               
+            
+               
+                    <a href="/tags/pod" title="pod">
+                        pod
+                    </a>
+               
+            
+               
+                    <a href="/tags/service" title="service">
+                        service
+                    </a>
+               
+            
+               
+                    <a href="/tags/sse" title="sse">
+                        sse
+                    </a>
+               
+            
+               
+                    <a href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
+                        云原生
+                    </a>
+               
+            
+               
+                    <a href="/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94" title="流式响应">
+                        流式响应
+                    </a>
+               
+            
+               
+                    <a href="/tags/%E7%BD%91%E7%BB%9C" title="网络">
+                        网络
+                    </a>
+               
+            
+               
+                    <a href="/tags/%E8%B0%83%E5%BA%A6" title="调度">
+                        调度
+                    </a>
+               
+            
+        </div>
+    </section>
+    
+
+    
+    
+    
+    
+    <section>
+        <hr class="hidden-sm hidden-xs">
+        <h5>LAST POSTS</h5>
+        <ul>
+        
+            <li><a href="/post/kubernetes-%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E5%85%A5%E9%97%A8pod-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AF%E4%BB%A5%E8%A2%AB%E8%8A%82%E7%82%B9%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE/">Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问</a></li>
+        
+            <li><a href="/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/">Kubernetes 核心概念：为什么 Pod 才是最小的调度单元</a></li>
+        
+            <li><a href="/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/">深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应</a></li>
+        
+            <li><a href="/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/">LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口</a></li>
+        
+            <li><a href="/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/">JVM 基础原理 01：一文吃透 JVM 整体架构</a></li>
+        
+        </ul>
+    </section>
+    
+</div>
+
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    
+                    <li>
+                        <a href="mailto:2086965923@qq.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/LiBaoxuan-Neil">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+            
+            
+            
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="Fragments of Logic" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+		<p class="copyright text-muted">
+                    Copyright &copy; Fragments of Logic 2026
+                    
+                    <br>
+                    
+                    
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+<script>
+    loadAsync("https://cdn.jsdelivr.net/npm/fastclick@1.0.6/lib/fastclick.min.js", function(){
+        var $nav = document.querySelector("nav");
+        if($nav) FastClick.attach($nav);
+    })
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow" title="' + t + '">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+
+</body>
+</html>

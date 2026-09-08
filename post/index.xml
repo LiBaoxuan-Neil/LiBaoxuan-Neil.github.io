@@ -43,5 +43,12 @@
       <guid>https://libaoxuan-neil.github.io/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/</guid>
       <description>&lt;p&gt;作为Java开发者，我们每天都在与JVM打交道，但真正能说清其核心架构和底层逻辑的人却不多。无论是日常开发中的性能优化、内存泄漏排查，JVM都是绕不开的核心。今天，我将以架构师的视角，带大家重新认识JVM，拆解其核心规范，帮大家从“会用”升级到“懂原理”。&lt;/p&gt;</description>
     </item>
+    <item>
+      <title>深入 Dapr 服务调用：从 invoke API 到 mTLS gRPC 通道的完整链路</title>
+      <link>https://libaoxuan-neil.github.io/post/%E6%B7%B1%E5%85%A5-dapr-%E6%9C%8D%E5%8A%A1%E8%B0%83%E7%94%A8%E4%BB%8E-invoke-api-%E5%88%B0-mtls-grpc-%E9%80%9A%E9%81%93%E7%9A%84%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>https://libaoxuan-neil.github.io/post/%E6%B7%B1%E5%85%A5-dapr-%E6%9C%8D%E5%8A%A1%E8%B0%83%E7%94%A8%E4%BB%8E-invoke-api-%E5%88%B0-mtls-grpc-%E9%80%9A%E9%81%93%E7%9A%84%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF/</guid>
+      <description>&lt;h2 id=&#34;一背景服务调用要解决的到底是什么问题&#34;&gt;一、背景：服务调用要解决的到底是什么问题&lt;/h2&gt;&#xA;&lt;p&gt;在微服务架构里，&amp;ldquo;A 服务调用 B 服务&amp;quot;这件看似简单的事，实际上要同时回答五个问题：&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;&lt;strong&gt;服务发现&lt;/strong&gt;：B 在哪里？有几个实例？实例上下线了怎么办？&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;协议标准化&lt;/strong&gt;：A 用 HTTP、B 用 gRPC 怎么互通？&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;安全&lt;/strong&gt;：怎么保证链路加密，怎么确认&amp;quot;你确实是 B 而不是伪装的 B&amp;rdquo;，怎么做方法级授权？&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;可靠性&lt;/strong&gt;：网络抖动、实例重启、证书轮换导致的瞬时失败怎么办？&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;可观测&lt;/strong&gt;：一次跨三个服务的调用，出问题时怎么定位是哪一跳慢了？&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;p&gt;传统做法是在每个服务里塞进 SDK：注册中心客户端、负载均衡器、重试库、熔断器、mTLS 配置、tracing 埋点……这些代码与业务无关，却要在每种语言里重复实现一遍，且升级极其痛苦。&lt;/p&gt;</description>
+    </item>
   </channel>
 </rss>
