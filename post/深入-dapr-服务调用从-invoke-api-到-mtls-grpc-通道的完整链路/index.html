@@ -21,9 +21,9 @@
     
 
     
-    <meta name="description" content="">
-    <meta property="og:description" content="" />
-    <meta property="twitter:description" content="" />
+    <meta name="description" content="沿着真实调用栈解析 Dapr 服务间调用：HTTP/gRPC 入口如何汇聚、Name Resolution 如何寻址、重试与请求重放如何协作、连接池与 SPIFFE mTLS 如何建立、ACL 与链路追踪在哪些点注入。面向具备 Go 与微服务基础的读者。">
+    <meta property="og:description" content="沿着真实调用栈解析 Dapr 服务间调用：HTTP/gRPC 入口如何汇聚、Name Resolution 如何寻址、重试与请求重放如何协作、连接池与 SPIFFE mTLS 如何建立、ACL 与链路追踪在哪些点注入。面向具备 Go 与微服务基础的读者。" />
+    <meta property="twitter:description" content="沿着真实调用栈解析 Dapr 服务间调用：HTTP/gRPC 入口如何汇聚、Name Resolution 如何寻址、重试与请求重放如何协作、连接池与 SPIFFE mTLS 如何建立、ACL 与链路追踪在哪些点注入。面向具备 Go 与微服务基础的读者。" />
     
 
     <meta property="og:url" content="https://libaoxuan-neil.github.io/post/%E6%B7%B1%E5%85%A5-dapr-%E6%9C%8D%E5%8A%A1%E8%B0%83%E7%94%A8%E4%BB%8E-invoke-api-%E5%88%B0-mtls-grpc-%E9%80%9A%E9%81%93%E7%9A%84%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF/" />
@@ -150,14 +150,69 @@
 
 
 
-<header class="intro-header" style="background-image: url('/img/downloaded-image.png')">
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/img/downloaded-image.png')
+    }
+</style>
+
+<header class="intro-header" >
+
     <div class="container">
         <div class="row">
-            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1 ">
-                <div class="site-heading">
-                    <h1>Fragments of Logic </h1>
-                    
-		    <span class="subheading">Where code meets contemplation.</span>
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/dapr" title="Dapr">
+                            Dapr
+                        </a>
+                        
+                        <a class="tag" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1" title="微服务">
+                            微服务
+                        </a>
+                        
+                        <a class="tag" href="/tags/grpc" title="gRPC">
+                            gRPC
+                        </a>
+                        
+                        <a class="tag" href="/tags/mtls" title="mTLS">
+                            mTLS
+                        </a>
+                        
+                        <a class="tag" href="/tags/spiffe" title="SPIFFE">
+                            SPIFFE
+                        </a>
+                        
+                        <a class="tag" href="/tags/go" title="Go">
+                            Go
+                        </a>
+                        
+                        <a class="tag" href="/tags/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90" title="源码解析">
+                            源码解析
+                        </a>
+                        
+                        <a class="tag" href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
+                            云原生
+                        </a>
+                        
+                    </div>
+                    <h1>深入 Dapr 服务调用：从 invoke API 到 mTLS gRPC 通道的完整链路</h1>
+                    <h2 class="subheading">基于 dapr/dapr 源码逐层剖析 Service Invocation 的实现原理</h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                LiBaoxuan
+                             
+                            on 
+                            Tuesday, September 8, 2026
+                            
+                            
+                            
+                            
+                    </span>
                 </div>
             </div>
         </div>
@@ -170,15 +225,18 @@
 <article>
     <div class="container">
         <div class="row">
+
             
             <div class="
-            col-lg-8 col-lg-offset-1
-            col-md-8 col-md-offset-1
-            col-sm-12
-            col-xs-12
-            post-container">
-            
-                <h2 id="一背景服务调用要解决的到底是什么问题">一、背景：服务调用要解决的到底是什么问题</h2>
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <blockquote>
+<p>本文所有结论均基于 <code>dapr/dapr</code> 仓库 commit <code>bbb49bc81a9f3d91cf3b76bb35c868a389d3972e</code>（2026-06-02）的实际源码。行号以该 commit 为准。涉及 <code>components-contrib</code> 的部分已单独标注。</p>
+</blockquote>
+<h2 id="一背景服务调用要解决的到底是什么问题">一、背景：服务调用要解决的到底是什么问题</h2>
 <p>在微服务架构里，&ldquo;A 服务调用 B 服务&quot;这件看似简单的事，实际上要同时回答五个问题：</p>
 <ol>
 <li><strong>服务发现</strong>：B 在哪里？有几个实例？实例上下线了怎么办？</li>
@@ -239,7 +297,8 @@
 </span></span><span style="display:flex;"><span><span style="color:#8be9fd;font-style:italic">type</span> DirectMessaging <span style="color:#8be9fd;font-style:italic">interface</span> {
 </span></span><span style="display:flex;"><span>	<span style="color:#50fa7b">Invoke</span>(ctx context.Context, targetAppID <span style="color:#8be9fd">string</span>, req <span style="color:#ff79c6">*</span>InvokeMethodRequest) (<span style="color:#ff79c6">*</span>InvokeMethodResponse, <span style="color:#8be9fd">error</span>)
 </span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p><strong>这是整个服务调用最重要的一个抽象。</strong> HTTP 入口和 gRPC 入口都只持有这个接口，对后面发生的服务发现、重试、mTLS 一无所知。这种&quot;一个窄接口切断所有耦合&quot;的设计，是 Dapr 能同时支持 HTTP/gRPC 入口和多种托管平台的根本原因。</p>
+</span></span></code></pre></div><p><strong>这是整个服务调用最重要的一个抽象。</strong> HTTP 入口和 gRPC 入口都只持有这个接口，对后面发生的服务发现、重试、mTLS 一无所知。这种&quot;一个窄接口切断所有耦合&quot;的设计，是 Dapr 能同时支持 HTTP/gRPC 入口和多种托管平台的根本原因</p>
+<p>。</p>
 <h2 id="三入口层http-与-grpc-如何汇聚到同一个点">三、入口层：HTTP 与 gRPC 如何汇聚到同一个点</h2>
 <h3 id="31-http-侧一条路由兜住所有动词">3.1 HTTP 侧：一条路由兜住所有动词</h3>
 <p>Dapr 的 HTTP 服务调用<strong>只注册了一条 endpoint</strong>（<code>pkg/api/http/directmessaging.go:74-95</code>）：</p>
@@ -1178,9 +1237,28 @@ handler 往 context 塞 <code>SpanData</code>，外层 middleware 在响应前�
 <li>本文所有行号均可通过 <code>git show bbb49bc8:&lt;file&gt;</code> 复核</li>
 </ul>
 
-            
-             
-            
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/" data-toggle="tooltip" data-placement="top" title="Kubernetes 核心概念：为什么 Pod 才是最小的调度单元">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/kubernetes-%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E5%85%A5%E9%97%A8pod-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AF%E4%BB%A5%E8%A2%AB%E8%8A%82%E7%82%B9%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE/" data-toggle="tooltip" data-placement="top" title="Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
 
 
 
@@ -1202,207 +1280,184 @@ handler 往 context 塞 <code>SpanData</code>，外层 middleware 在响应前�
 </script>
 
 
+            </div>
+
             
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
             </div>
             
-            
 
-<div class="
-    col-lg-3 col-lg-offset-0
-    col-md-3 col-md-offset-0
-    col-sm-12
-    col-xs-12
-    sidebar-container
-">
-    
-	
-    <section class="visible-md visible-lg">
-	
-        <div class="short-about">
             
-            <a href="/about">
-               <img src="/img/41ec9b8f3eabfc7835663be5bcd83696.png" alt="avatar" style="cursor: pointer" />
-            </a>
-            
-            
-                <p>Software Developer</p>
-            
-           
-           <ul class="list-inline">
-               
-               <li>
-                   <a href="mailto:2086965923@qq.com">
-                      <span class="fa-stack fa-lg">
-                          <i class="fa fa-circle fa-stack-2x"></i>
-                          <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
-                      </span>
-                   </a>
-               </li>
-               
-               
-               
-               
-               
-               
-               
-               <li>
-                   <a target="_blank" href="https://github.com/LiBaoxuan-Neil">
-                       <span class="fa-stack fa-lg">
-                           <i class="fas fa-circle fa-stack-2x"></i>
-                           <i class="fab fa-github fa-stack-1x fa-inverse"></i>
-                       </span>
-                   </a>
-               </li>
-               
-               
-               
-               
-               
-               
-            
-            
-               
-               
-               
-               
-                </ul>
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+                <section>
+                    <hr class="hidden-sm hidden-xs">
+                    <h5><a href="/tags/">FEATURED TAGS</a></h5>
+                    <div class="tags">
+                        
+                        
+                        
+                        <a href="/tags/ai-services" title="ai services">
+                            ai services
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/api" title="api">
+                            api
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/chat-completions" title="chat completions">
+                            chat completions
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/cni" title="cni">
+                            cni
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/dapr" title="dapr">
+                            dapr
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/go" title="go">
+                            go
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/grpc" title="grpc">
+                            grpc
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/java-ai" title="java ai">
+                            java ai
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/jvm" title="jvm">
+                            jvm
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/kubernetes" title="kubernetes">
+                            kubernetes
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/langchain4j" title="langchain4j">
+                            langchain4j
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/mtls" title="mtls">
+                            mtls
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/openai" title="openai">
+                            openai
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/pod" title="pod">
+                            pod
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/service" title="service">
+                            service
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/spiffe" title="spiffe">
+                            spiffe
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/sse" title="sse">
+                            sse
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
+                            云原生
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1" title="微服务">
+                            微服务
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94" title="流式响应">
+                            流式响应
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90" title="源码解析">
+                            源码解析
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E7%BD%91%E7%BB%9C" title="网络">
+                            网络
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/%E8%B0%83%E5%BA%A6" title="调度">
+                            调度
+                        </a>
+                        
+                        
+                    </div>
+                </section>
+                
+
+                
+                
             </div>
-    </section>
-	
-    
-    
-    
-    
-    <section>
-        <hr class="hidden-sm hidden-xs">
-        <h5>FEATURED TAGS</h5>
-        <div class="tags">
-            
-            
-               
-                    <a href="/tags/ai-services" title="ai services">
-                        ai services
-                    </a>
-               
-            
-               
-                    <a href="/tags/api" title="api">
-                        api
-                    </a>
-               
-            
-               
-                    <a href="/tags/chat-completions" title="chat completions">
-                        chat completions
-                    </a>
-               
-            
-               
-                    <a href="/tags/cni" title="cni">
-                        cni
-                    </a>
-               
-            
-               
-                    <a href="/tags/java-ai" title="java ai">
-                        java ai
-                    </a>
-               
-            
-               
-                    <a href="/tags/jvm" title="jvm">
-                        jvm
-                    </a>
-               
-            
-               
-                    <a href="/tags/kubernetes" title="kubernetes">
-                        kubernetes
-                    </a>
-               
-            
-               
-                    <a href="/tags/langchain4j" title="langchain4j">
-                        langchain4j
-                    </a>
-               
-            
-               
-                    <a href="/tags/openai" title="openai">
-                        openai
-                    </a>
-               
-            
-               
-                    <a href="/tags/pod" title="pod">
-                        pod
-                    </a>
-               
-            
-               
-                    <a href="/tags/service" title="service">
-                        service
-                    </a>
-               
-            
-               
-                    <a href="/tags/sse" title="sse">
-                        sse
-                    </a>
-               
-            
-               
-                    <a href="/tags/%E4%BA%91%E5%8E%9F%E7%94%9F" title="云原生">
-                        云原生
-                    </a>
-               
-            
-               
-                    <a href="/tags/%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94" title="流式响应">
-                        流式响应
-                    </a>
-               
-            
-               
-                    <a href="/tags/%E7%BD%91%E7%BB%9C" title="网络">
-                        网络
-                    </a>
-               
-            
-               
-                    <a href="/tags/%E8%B0%83%E5%BA%A6" title="调度">
-                        调度
-                    </a>
-               
-            
-        </div>
-    </section>
-    
-
-    
-    
-    
-    
-    <section>
-        <hr class="hidden-sm hidden-xs">
-        <h5>LAST POSTS</h5>
-        <ul>
-        
-            <li><a href="/post/kubernetes-%E7%BD%91%E7%BB%9C%E5%8E%9F%E7%90%86%E5%85%A5%E9%97%A8pod-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AF%E4%BB%A5%E8%A2%AB%E8%8A%82%E7%82%B9%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE/">Kubernetes 网络原理入门：Pod 为什么可以被节点直接访问</a></li>
-        
-            <li><a href="/post/kubernetes-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%BA%E4%BB%80%E4%B9%88-pod-%E6%89%8D%E6%98%AF%E6%9C%80%E5%B0%8F%E7%9A%84%E8%B0%83%E5%BA%A6%E5%8D%95%E5%85%83/">Kubernetes 核心概念：为什么 Pod 才是最小的调度单元</a></li>
-        
-            <li><a href="/post/%E6%B7%B1%E5%85%A5openai-chat-completions%E4%BB%8Echatcompletioncreateparams%E5%88%B0sse%E6%B5%81%E5%BC%8F%E5%93%8D%E5%BA%94/">深入 OpenAI Chat Completions：从 ChatCompletionCreateParams 到 SSE 流式响应</a></li>
-        
-            <li><a href="/post/langchain4j%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%85%A5%E9%97%A8%E7%94%A8ai-services%E6%8A%8A%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%B0%81%E8%A3%85%E6%88%90java%E6%8E%A5%E5%8F%A3/">LangChain4j 编程模型入门：用 AI Services 把大模型封装成 Java 接口</a></li>
-        
-            <li><a href="/post/jvm%E5%9F%BA%E7%A1%80%E5%8E%9F%E7%90%8601%E4%B8%80%E6%96%87%E5%90%83%E9%80%8Fjvm%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84/">JVM 基础原理 01：一文吃透 JVM 整体架构</a></li>
-        
-        </ul>
-    </section>
-    
-</div>
-
         </div>
     </div>
 </article>
