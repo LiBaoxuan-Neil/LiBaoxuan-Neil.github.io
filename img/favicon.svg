@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Fragments of Logic">
+  <title>Fragments of Logic</title>
+  <rect width="512" height="512" rx="112" fill="#0a1428"/>
+  <rect x="116" y="116" width="124" height="124" rx="27" fill="#5bb8c0"/>
+  <rect x="116" y="272" width="124" height="124" rx="27" fill="#4a9fa8"/>
+  <rect x="272" y="272" width="124" height="124" rx="27" fill="#3c848d"/>
+  <rect x="272" y="116" width="124" height="124" rx="27" fill="#c8f2f5" transform="translate(14 -18) rotate(12 334 178)"/>
+</svg>

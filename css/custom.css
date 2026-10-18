@@ -1477,3 +1477,617 @@ html[data-lang-from="en"] .fl-lang-switch[data-active="zh"] .fl-lang-thumb {
   text-decoration: none;
 }
 .fl-empty-link:hover { text-decoration: underline; }
+
+/* ============================================================
+   站内搜索（/search/ 页面 + 全局浮层）
+   共用一套 .fl-search-* 结构；浮层只做密度与背景上的覆盖
+   ============================================================ */
+
+/* ---- 导航工具区：图标按钮（搜索 / 主题）---- */
+.navbar-custom .nav li.fl-nav-item {
+  float: left;
+  display: flex;
+  align-items: center;
+  height: 60px;
+  padding: 0 1px;
+}
+
+.navbar-custom .nav li .fl-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 14px;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: 0;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.navbar-custom .nav li .fl-nav-icon:hover,
+.navbar-custom .nav li .fl-nav-icon:focus {
+  background: rgba(127, 127, 127, 0.16);
+}
+
+.navbar-custom .nav li .fl-nav-icon:focus-visible {
+  outline: 2px solid var(--fl-accent);
+  outline-offset: 2px;
+}
+
+/* ---- 搜索框 ---- */
+.fl-search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px 0 16px;
+  border: 1px solid var(--fl-border);
+  border-radius: var(--fl-radius);
+  background: var(--fl-card-bg);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fl-search-field:focus-within {
+  border-color: var(--fl-accent);
+  box-shadow: 0 0 0 3px var(--fl-accent-soft);
+}
+
+.fl-search-field-icon {
+  font-size: 15px;
+  color: var(--fl-muted);
+  transition: color 0.2s ease;
+}
+
+.fl-search-field:focus-within .fl-search-field-icon { color: var(--fl-accent); }
+
+.fl-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--fl-text);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.fl-search-input::placeholder { color: var(--fl-muted); }
+.fl-search-input::-webkit-search-cancel-button,
+.fl-search-input::-webkit-search-decoration { -webkit-appearance: none; }
+
+.fl-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fl-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.fl-search-clear:hover {
+  background: var(--fl-accent-soft);
+  color: var(--fl-accent);
+}
+
+.fl-search-esc {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid var(--fl-border);
+  border-radius: 6px;
+  background: var(--fl-card-bg);
+  font-family: var(--fl-font-mono);
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--fl-muted);
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.fl-search-esc:hover {
+  color: var(--fl-accent);
+  border-color: var(--fl-accent-soft-border);
+}
+
+/* ---- 状态行 ---- */
+.fl-search-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 2px 16px;
+  font-size: 12.5px;
+  color: var(--fl-muted);
+}
+
+.fl-search-tip {
+  font-family: var(--fl-font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
+.fl-search-status { color: var(--fl-text-secondary); }
+.fl-search-status:empty { display: none; }
+
+/* ---- 结果列表 ---- */
+.fl-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fl-search-item {
+  display: block;
+  padding: 18px 22px;
+  border: 1px solid var(--fl-border);
+  border-radius: var(--fl-radius);
+  background: var(--fl-card-bg);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fl-search-item:hover,
+.fl-search-item:focus {
+  border-color: var(--fl-accent-soft-border);
+  box-shadow: var(--fl-shadow);
+  text-decoration: none;
+  outline: none;
+}
+
+.fl-search-item.is-active {
+  border-color: var(--fl-accent);
+  box-shadow: 0 0 0 3px var(--fl-accent-soft);
+}
+
+.fl-search-item-title {
+  margin: 0 0 6px;
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.55;
+  color: var(--fl-text);
+  transition: color 0.18s ease;
+}
+
+.fl-search-item:hover .fl-search-item-title { color: var(--fl-accent); }
+
+.fl-search-item-snippet {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--fl-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fl-search-item .fl-card-meta { margin: 0; }
+
+.fl-search-series {
+  font-family: var(--fl-font-mono);
+  font-size: 12px;
+  color: var(--fl-accent);
+}
+
+.fl-search-tag {
+  font-family: var(--fl-font-mono);
+  font-size: 12px;
+  color: var(--fl-text-secondary);
+}
+
+.fl-search-tag-sep {
+  color: var(--fl-muted);
+  opacity: 0.7;
+}
+
+.fl-search-mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--fl-accent-soft);
+  color: var(--fl-accent);
+  font-weight: 600;
+}
+
+.fl-search-note {
+  margin: 0 2px 12px;
+  font-size: 12.5px;
+  color: var(--fl-muted);
+}
+
+/* ---- 空闲 / 无结果 / 报错 ---- */
+.fl-search-state {
+  padding: 34px 26px;
+  border: 1px dashed var(--fl-border);
+  border-radius: var(--fl-radius);
+  background: var(--fl-card-bg-soft);
+  text-align: center;
+}
+
+.fl-search-state-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fl-text);
+}
+
+.fl-search-state-desc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--fl-text-secondary);
+}
+
+.fl-search-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.fl-search-chips-label {
+  font-family: var(--fl-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fl-muted);
+}
+
+.fl-search-chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.fl-search-chip {
+  cursor: pointer;
+  font-family: inherit;
+  padding: 6px 8px 6px 14px;
+}
+
+/* ---- 浮层 ---- */
+.fl-search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(28px, 9vh, 96px) 16px 24px;
+  overflow-y: auto;
+}
+
+.fl-search-overlay[hidden] { display: none !important; }
+
+.fl-search-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 12, 22, 0.52);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.fl-search-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(680px, 100%);
+  max-height: min(74vh, 660px);
+  border: 1px solid var(--fl-border);
+  border-radius: 14px;
+  background: var(--fl-card-bg);
+  box-shadow: 0 24px 60px rgba(6, 16, 34, 0.32);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.99);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.fl-search-overlay.is-open .fl-search-backdrop { opacity: 1; }
+.fl-search-overlay.is-open .fl-search-panel { opacity: 1; transform: none; }
+
+.fl-search-overlay .fl-search-field {
+  height: 56px;
+  padding: 0 18px;
+  border: none;
+  border-bottom: 1px solid var(--fl-border-light);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.fl-search-overlay .fl-search-field:focus-within { box-shadow: none; }
+
+.fl-search-overlay .fl-search-status {
+  padding: 10px 18px 0;
+  font-size: 12px;
+  color: var(--fl-muted);
+}
+
+.fl-search-overlay .fl-search-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px 12px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.fl-search-overlay .fl-search-results { gap: 2px; }
+
+.fl-search-overlay .fl-search-item {
+  padding: 12px 14px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.fl-search-overlay .fl-search-item:hover,
+.fl-search-overlay .fl-search-item:focus {
+  background: var(--fl-card-bg-soft);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.fl-search-overlay .fl-search-item.is-active {
+  background: var(--fl-accent-soft);
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 var(--fl-accent);
+}
+
+.fl-search-overlay .fl-search-item-title { font-size: 15px; }
+.fl-search-overlay .fl-search-item-snippet { margin-bottom: 8px; }
+
+.fl-search-overlay .fl-search-state {
+  padding: 24px 18px;
+  border: none;
+  background: transparent;
+}
+
+.fl-search-overlay .fl-search-chips { margin-top: 18px; }
+
+.fl-search-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--fl-border-light);
+  background: var(--fl-card-bg-soft);
+  font-size: 11.5px;
+  color: var(--fl-muted);
+}
+
+.fl-search-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fl-search-keys kbd {
+  padding: 3px 5px;
+  border: 1px solid var(--fl-border);
+  border-radius: 5px;
+  background: var(--fl-card-bg);
+  box-shadow: 0 1px 0 var(--fl-border);
+  font-family: var(--fl-font-mono);
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--fl-text-secondary);
+}
+
+.fl-search-keys-sep { width: 8px; }
+
+.fl-search-all {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fl-accent);
+  white-space: nowrap;
+}
+
+.fl-search-all:hover { text-decoration: underline; }
+
+html.fl-search-open,
+html.fl-search-open body { overflow: hidden; }
+
+@media (hover: none) {
+  .fl-search-tip { display: none; }
+}
+
+@media (max-width: 767px) {
+  .fl-search-overlay {
+    align-items: stretch;
+    padding: 10px 10px 16px;
+  }
+
+  .fl-search-panel { max-height: 88vh; width: 100%; }
+
+  .fl-search-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .fl-search-item { padding: 15px 16px; }
+
+  .fl-search-item-snippet {
+    -webkit-line-clamp: 3;
+    font-size: 13px;
+  }
+
+  .fl-search-foot .fl-search-keys { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fl-search-backdrop,
+  .fl-search-panel,
+  .fl-search-field,
+  .fl-search-item,
+  .fl-search-item-title {
+    transition: none;
+  }
+}
+
+/* ---- 覆盖主题的全局表单/按钮 !important ----
+   theme-variables.css 里 `input{}`、`[data-theme="dark"] button{}`、
+   `[data-theme="dark"] p{}`、`[data-theme="dark"] a{}` 都是无差别选择器，
+   会把搜索组件的输入框底色、按钮配色、摘要文字颜色一起改掉。 */
+.fl-search .fl-search-input,
+.fl-search-overlay .fl-search-input {
+  background-color: transparent !important;
+  color: var(--fl-text) !important;
+}
+
+.fl-search-clear[hidden] { display: none !important; }
+
+[data-theme="dark"] .fl-search button,
+[data-theme="dark"] .fl-search-overlay button {
+  background: transparent !important;
+  border-color: var(--fl-border) !important;
+  color: var(--fl-text-secondary) !important;
+}
+
+[data-theme="dark"] .fl-search .fl-search-esc,
+[data-theme="dark"] .fl-search-overlay .fl-search-esc {
+  background: var(--fl-card-bg) !important;
+}
+
+[data-theme="dark"] .fl-search .fl-search-chip,
+[data-theme="dark"] .fl-search-overlay .fl-search-chip {
+  background: var(--fl-card-bg) !important;
+  border-color: var(--fl-border) !important;
+  color: var(--fl-text-secondary) !important;
+}
+
+[data-theme="dark"] .fl-search .fl-search-chip:hover,
+[data-theme="dark"] .fl-search-overlay .fl-search-chip:hover {
+  border-color: var(--fl-accent) !important;
+  color: var(--fl-accent) !important;
+}
+
+[data-theme="dark"] .fl-search .fl-search-esc:hover,
+[data-theme="dark"] .fl-search-overlay .fl-search-esc:hover {
+  color: var(--fl-accent) !important;
+  border-color: var(--fl-accent-soft-border) !important;
+}
+
+[data-theme="dark"] .fl-search p,
+[data-theme="dark"] .fl-search-overlay p {
+  color: var(--fl-text-secondary) !important;
+}
+
+[data-theme="dark"] .fl-search .fl-search-state-title,
+[data-theme="dark"] .fl-search-overlay .fl-search-state-title {
+  color: var(--fl-text) !important;
+}
+
+[data-theme="dark"] .fl-search .fl-search-all,
+[data-theme="dark"] .fl-search-overlay .fl-search-all,
+[data-theme="dark"] .fl-search .fl-search-series,
+[data-theme="dark"] .fl-search-overlay .fl-search-series {
+  color: var(--fl-accent) !important;
+}
+
+[data-theme="dark"] .fl-search .fl-search-item:hover .fl-search-item-title {
+  color: var(--fl-accent) !important;
+}
+
+/* ---- 移动端顶栏搜索入口 ---- */
+.fl-search-mobile { display: none; }
+
+@media (max-width: 767px) {
+  .fl-search-mobile {
+    float: right;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin: 13px 2px 0 0;
+    border-radius: 999px;
+    font-size: 14px;
+    line-height: 1;
+    transition: background-color 0.18s ease;
+  }
+
+  .fl-search-mobile:hover { background: rgba(127, 127, 127, 0.16); }
+
+  /* 换行后的分隔点会落在行首，移动端直接隐藏 */
+  .fl-search .fl-card-meta .fl-meta-dot,
+  .fl-search-overlay .fl-card-meta .fl-meta-dot { display: none; }
+
+  .fl-search-item .fl-card-meta { column-gap: 12px; row-gap: 6px; }
+}
+
+/* ---- 结果元信息里的标签组 ---- */
+.fl-search-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 767px) {
+  .fl-search-tags { gap: 10px; }
+  .fl-search .fl-search-tag-sep,
+  .fl-search-overlay .fl-search-tag-sep { display: none; }
+}
+
+/* ---- 结果组件在正文容器内的排版收回 ----
+   .post-container 的 h3(19px)、p(16.5px/1.4em)、a(border-bottom) 规则
+   权重高于单个类选择器，会把结果卡片撑大并画出多余的下边框。 */
+.post-container .fl-search-item {
+  border: 1px solid var(--fl-border);
+  text-decoration: none;
+}
+
+.post-container .fl-search-item-title {
+  font-size: 16.5px;
+  margin: 0 0 6px;
+}
+
+.post-container .fl-search-item-snippet {
+  font-size: 13.5px;
+  line-height: 1.75;
+  margin: 0 0 10px;
+}
+
+.post-container .fl-search-item .fl-card-meta {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--fl-muted);
+}
+
+.post-container .fl-search-state-desc {
+  font-size: 13.5px;
+  line-height: 1.75;
+  margin: 0;
+}
+
+.post-container .fl-search-note {
+  font-size: 12.5px;
+  margin: 0 2px 12px;
+}
+
+@media (max-width: 767px) {
+  .post-container .fl-search-item-snippet { font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-container .fl-search-item { transition: none; }
+}
