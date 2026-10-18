@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 300" role="img" aria-label="JVM 整体架构" style="--cv-bg:#FBF3E8; --cv-bg-dark:#1F1608; --cv-accent:#B45309; --cv-accent-dark:#E0A458; --cv-accent-soft:#F0DCC0; --cv-accent-soft-dark:rgba(224,164,88,0.2);">
+  <rect class="cv-bg" width="680" height="300" fill="#FBF3E8"/>
+  <rect x="48" y="52" width="36" height="4" rx="2" class="cv-accent-fill" fill="#B45309"/>
+  <text class="cv-eyebrow" x="48" y="88" fill="#8a9199">JVM · 基础原理 01</text>
+  <text class="cv-title" x="48" y="134" fill="#2b2f33">JVM 整体架构</text>
+  <text class="cv-sub" x="48" y="172" fill="#8a9199">从类加载到字节码执行的运行全景</text>
+  <rect class="cv-accent-stroke" x="494" y="88" width="132" height="124" rx="12" stroke="#B45309"/>
+  <rect class="cv-accent-soft-fill" x="510" y="104" width="100" height="22" rx="5" fill="#F0DCC0"/>
+  <rect class="cv-accent-soft-fill" x="518" y="134" width="84" height="22" rx="5" fill="#F0DCC0"/>
+  <rect class="cv-accent-soft-fill" x="526" y="164" width="68" height="22" rx="5" fill="#F0DCC0"/>
+</svg>

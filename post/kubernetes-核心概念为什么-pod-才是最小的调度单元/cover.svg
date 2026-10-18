@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 300" role="img" aria-label="为什么 Pod 才是最小调度单元" style="--cv-bg:#EDF6F7; --cv-bg-dark:#0A1A1E; --cv-accent:#0E7C86; --cv-accent-dark:#5BB8C0; --cv-accent-soft:#C8E3E6; --cv-accent-soft-dark:rgba(91,184,192,0.22);">
+  <rect class="cv-bg" width="680" height="300" fill="#EDF6F7"/>
+  <rect x="48" y="52" width="36" height="4" rx="2" class="cv-accent-fill" fill="#0E7C86"/>
+  <text class="cv-eyebrow" x="48" y="88" fill="#8a9199">KUBERNETES · 01</text>
+  <text class="cv-title" x="48" y="134" fill="#2b2f33">为什么 Pod 才是最小调度单元</text>
+  <text class="cv-sub" x="48" y="172" fill="#8a9199">容器是进程，Pod 是一台逻辑主机</text>
+  <polygon class="cv-accent-stroke" points="555,80 494,115 494,185 555,220 616,115 616,185" stroke="#0E7C86"/>
+  <rect class="cv-accent-soft-fill" x="525" y="128" width="24" height="20" rx="4" fill="#C8E3E6"/>
+  <rect class="cv-accent-soft-fill" x="561" y="128" width="24" height="20" rx="4" fill="#C8E3E6"/>
+  <rect class="cv-accent-soft-fill" x="543" y="158" width="24" height="20" rx="4" fill="#C8E3E6"/>
+  <circle class="cv-accent-fill" cx="555" cy="143" r="4" fill="#0E7C86"/>
+</svg>

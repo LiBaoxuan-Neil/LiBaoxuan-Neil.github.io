@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 300" role="img" aria-label="从参数契约到 SSE 流式" style="--cv-bg:#EBF4FA; --cv-bg-dark:#0B1B28; --cv-accent:#0369A1; --cv-accent-dark:#6FB6E8; --cv-accent-soft:#C9E2F5; --cv-accent-soft-dark:rgba(111,182,232,0.22);">
+  <rect class="cv-bg" width="680" height="300" fill="#EBF4FA"/>
+  <rect x="48" y="52" width="36" height="4" rx="2" class="cv-accent-fill" fill="#0369A1"/>
+  <text class="cv-eyebrow" x="48" y="88" fill="#8a9199">OPENAI API · 深度</text>
+  <text class="cv-title" x="48" y="134" fill="#2b2f33">从参数契约到 SSE 流式</text>
+  <text class="cv-sub" x="48" y="172" fill="#8a9199">一条聊天请求的完整链路</text>
+  <rect class="cv-accent-soft-fill" x="500" y="108" width="112" height="8" rx="4" fill="#C9E2F5"/>
+  <rect class="cv-accent-soft-fill" x="516" y="132" width="88" height="8" rx="4" fill="#C9E2F5"/>
+  <rect class="cv-accent-soft-fill" x="532" y="156" width="64" height="8" rx="4" fill="#C9E2F5"/>
+  <circle class="cv-accent-fill" cx="604" cy="112" r="5" fill="#0369A1"/>
+  <text class="cv-sub" x="500" y="196" fill="#8a9199" style="font-family:var(--fl-font-mono); font-size:12px;">data: [DONE]</text>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 300" role="img" aria-label="用 AI Services 封装大模型" style="--cv-bg:#F1F0FB; --cv-bg-dark:#161328; --cv-accent:#6D5BD0; --cv-accent-dark:#A79BEB; --cv-accent-soft:#D9D4F5; --cv-accent-soft-dark:rgba(167,155,235,0.22);">
+  <rect class="cv-bg" width="680" height="300" fill="#F1F0FB"/>
+  <rect x="48" y="52" width="36" height="4" rx="2" class="cv-accent-fill" fill="#6D5BD0"/>
+  <text class="cv-eyebrow" x="48" y="88" fill="#8a9199">LANGCHAIN4J · AI 工程</text>
+  <text class="cv-title" x="48" y="134" fill="#2b2f33">用 AI Services 封装大模型</text>
+  <text class="cv-sub" x="48" y="172" fill="#8a9199">声明式接口背后的工程边界</text>
+  <line class="cv-accent-stroke" x1="528" y1="118" x2="566" y2="150" stroke="#6D5BD0"/>
+  <line class="cv-accent-stroke" x1="566" y1="150" x2="528" y2="182" stroke="#6D5BD0"/>
+  <circle class="cv-accent-soft-fill" cx="514" cy="118" r="15" fill="#D9D4F5"/>
+  <circle class="cv-accent-soft-fill" cx="580" cy="150" r="15" fill="#D9D4F5"/>
+  <circle class="cv-accent-soft-fill" cx="514" cy="182" r="15" fill="#D9D4F5"/>
+  <circle class="cv-accent-fill" cx="580" cy="150" r="5" fill="#6D5BD0"/>
+</svg>
