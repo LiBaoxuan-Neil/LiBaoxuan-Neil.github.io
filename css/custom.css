@@ -1278,10 +1278,9 @@ pre code {
 }
 
 /* ============================================================
-   页眉语言切换（中文 ｜ EN）
-   外观参考 Nacos：胶囊容器 + 纯文字，当前语言靠文字对比度区分
-   位置：导航右侧工具区（搜索与主题图标之前）
-   移动端：固定在汉堡按钮左侧，不进入折叠菜单
+   页眉语言切换（滑块开关，参考 nacos.io）
+   容器 + 可平移滑块：滑块 0.3s 缓动，切换语言时从旧位置滑到新位置
+   滑块位置由容器 data-active 映射到 --fl-lang-x（0% / 100%）
    ============================================================ */
 .fl-lang-mobile { display: none; }
 
@@ -1294,64 +1293,100 @@ li.fl-lang-item {
 }
 
 .fl-lang-switch {
-  /* 默认值对应「文字页头 / 浅色底」 */
-  --fl-lang-bg: rgba(18, 25, 32, 0.05);
-  --fl-lang-border: rgba(18, 25, 32, 0.1);
+  --fl-lang-x: 0%;
+  --fl-lang-bg: rgba(18, 25, 32, 0.055);
+  --fl-lang-thumb: #ffffff;
+  --fl-lang-thumb-shadow: 0 1px 2px rgba(16, 24, 40, 0.14), 0 1px 1px rgba(16, 24, 40, 0.06);
   --fl-lang-text: var(--fl-muted);
   --fl-lang-text-active: var(--fl-text);
 
-  display: inline-flex;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
   box-sizing: border-box;
   height: 30px;
-  padding: 3px;
-  border: 1px solid var(--fl-lang-border);
+  padding: 2px;
   border-radius: 999px;
   background: var(--fl-lang-bg);
   line-height: 1;
   -webkit-tap-highlight-color: transparent;
 }
 
+.fl-lang-switch[data-active="en"] { --fl-lang-x: 100%; }
+
+/* 跨页切换：首帧先落在“上一次选择”的一侧（无过渡），
+   随后移除 html[data-lang-from] 触发 0.3s 平移 */
+html[data-lang-from="zh"] .fl-lang-switch[data-active="en"] .fl-lang-thumb {
+  transform: translateX(0%);
+  transition: none;
+}
+html[data-lang-from="en"] .fl-lang-switch[data-active="zh"] .fl-lang-thumb {
+  transform: translateX(100%);
+  transition: none;
+}
+
+/* 滑块：本身不显示文字，语言文字始终由两侧 .fl-lang-opt 提供 */
+.fl-lang-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  border-radius: 999px;
+  background: var(--fl-lang-thumb);
+  box-shadow: var(--fl-lang-thumb-shadow);
+  transform: translateX(var(--fl-lang-x));
+  transition: transform 0.3s ease-in;
+  pointer-events: none;
+}
+
 .fl-lang-opt {
   position: relative;
-  display: inline-flex;
+  z-index: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
-  min-width: 30px;
-  padding: 0 12px;
+  align-self: stretch;
+  padding: 0 14px;
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.02em;
   line-height: 1;
   color: var(--fl-lang-text);
   text-decoration: none;
-  transition: color 0.18s ease, opacity 0.18s ease;
+  transition: color 0.2s ease;
 }
 
 .fl-lang-opt:hover,
 .fl-lang-opt:focus { color: var(--fl-lang-text-active); text-decoration: none; }
 
+/* 覆盖主题 .navbar-custom .nav li a 的链接样式
+   （20px 内边距 / 20px 行高 / 800 字重 / 强制大写 会把开关撑变形） */
+.navbar-custom .nav li .fl-lang-opt {
+  padding: 0 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  background: transparent;
+}
+.navbar-custom .nav li .fl-lang-opt:hover,
+.navbar-custom .nav li .fl-lang-opt:focus {
+  color: var(--fl-lang-text-active);
+  background: transparent;
+}
+.navbar-custom .nav li .fl-lang-opt.is-active { font-weight: 600; }
+.navbar-custom .nav li .fl-lang-opt.is-disabled { opacity: 0.42; background: transparent; }
+
 .fl-lang-opt:focus-visible {
   outline: 2px solid var(--fl-accent);
-  outline-offset: 3px;
+  outline-offset: 2px;
   border-radius: 999px;
 }
 
-/* 两段之间的细分隔线 */
-.fl-lang-opt + .fl-lang-opt::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 1px;
-  height: 13px;
-  transform: translateY(-50%);
-  background: currentColor;
-  opacity: 0.32;
-}
-
-/* 当前语言：不加底色，只用对比度 + 字重 */
+/* 当前语言：位于滑块之上，高对比 + 略重字重 */
 .fl-lang-opt.is-active {
   color: var(--fl-lang-text-active);
   font-weight: 600;
@@ -1360,38 +1395,47 @@ li.fl-lang-item {
 .fl-lang-opt.is-disabled { cursor: not-allowed; opacity: 0.42; }
 .fl-lang-opt.is-disabled:hover { color: var(--fl-lang-text); }
 
-/* 深色头图（无 invert）：白字 + 更实一点的容器 */
+/* 深色头图（无 invert）：深色容器 + 白色滑块，滑块上是深色文字 */
 .navbar-custom:not(.invert):not(.is-fixed) .fl-lang-switch {
-  --fl-lang-bg: rgba(0, 0, 0, 0.22);
-  --fl-lang-border: rgba(255, 255, 255, 0.28);
-  --fl-lang-text: rgba(255, 255, 255, 0.68);
-  --fl-lang-text-active: #ffffff;
+  --fl-lang-bg: rgba(0, 0, 0, 0.3);
+  --fl-lang-thumb: rgba(255, 255, 255, 0.94);
+  --fl-lang-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --fl-lang-text: rgba(255, 255, 255, 0.72);
+  --fl-lang-text-active: #16202b;
 }
 
-/* 文字页头 + 暗色主题 */
+/* 文字页头 + 暗色主题：贴近 nacos 的深色容器 + #2e3038 滑块 */
 [data-theme="dark"] .navbar-custom.invert .fl-lang-switch {
-  --fl-lang-bg: rgba(255, 255, 255, 0.07);
-  --fl-lang-border: rgba(255, 255, 255, 0.16);
-  --fl-lang-text: rgba(215, 221, 227, 0.62);
-  --fl-lang-text-active: #ffffff;
+  --fl-lang-bg: rgba(255, 255, 255, 0.075);
+  --fl-lang-thumb: #2e3038;
+  --fl-lang-thumb-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --fl-lang-text: rgba(215, 221, 227, 0.55);
+  --fl-lang-text-active: #f4f4f6;
 }
 
 /* 滚动后的固定导航栏 */
 .navbar-custom.is-fixed .fl-lang-switch {
-  --fl-lang-bg: rgba(18, 25, 32, 0.045);
-  --fl-lang-border: var(--fl-border);
+  --fl-lang-bg: rgba(18, 25, 32, 0.05);
+  --fl-lang-thumb: #ffffff;
+  --fl-lang-thumb-shadow: 0 1px 2px rgba(16, 24, 40, 0.14);
   --fl-lang-text: var(--fl-text-secondary);
   --fl-lang-text-active: var(--fl-text);
 }
 [data-theme="dark"] .navbar-custom.is-fixed .fl-lang-switch {
-  --fl-lang-bg: rgba(255, 255, 255, 0.06);
-  --fl-lang-border: rgba(148, 197, 255, 0.18);
+  --fl-lang-bg: rgba(255, 255, 255, 0.07);
+  --fl-lang-thumb: #2e3038;
+  --fl-lang-thumb-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   --fl-lang-text: var(--fl-muted);
   --fl-lang-text-active: var(--fl-text);
 }
 
 .fl-lang-switch--full .fl-lang-label-short { display: none; }
 .fl-lang-switch--compact .fl-lang-label-full { display: none; }
+.fl-lang-switch--compact .fl-lang-opt { padding: 0 9px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fl-lang-thumb { transition: none; }
+}
 
 @media (max-width: 767px) {
   .fl-lang-mobile {
@@ -1400,7 +1444,6 @@ li.fl-lang-item {
     margin: 13px 4px 0 0;
   }
   li.fl-lang-item { display: none; }
-  .fl-lang-switch--compact .fl-lang-opt { min-width: 26px; padding: 0 9px; }
 }
 
 @media print {
