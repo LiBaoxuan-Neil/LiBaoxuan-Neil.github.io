@@ -2091,3 +2091,101 @@ html.fl-search-open body { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .post-container .fl-search-item { transition: none; }
 }
+
+/* ============================================================
+   404 页
+   沿用首页 hero 的骨架（点阵纹理 + 呼吸光晕 + 胶囊链接），
+   404 的大字用描边数字，配合"信号丢失"的路径回显
+   ============================================================ */
+/* 底部边框沿用 .fl-hero：点阵纹理需要一条收边，否则断得生硬 */
+.fl-404-hero {
+  padding: 104px 20px 52px;
+}
+
+/* ---- 巨型描边数字 ---- */
+.fl-404-code {
+  font-family: var(--fl-font-mono);
+  font-size: clamp(64px, 13vw, 118px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: 0.1em;
+  /* 与数字宽度对齐的视觉居中：补偿 letter-spacing 的尾隙 */
+  text-indent: 0.1em;
+  margin: 0 0 16px;
+  color: transparent;
+  -webkit-text-stroke: 2px var(--fl-accent);
+  filter: drop-shadow(0 0 18px var(--fl-glow));
+  animation: fl-404-pulse 5.5s ease-in-out infinite;
+}
+
+@supports not ((-webkit-text-stroke: 1px #000) or (text-stroke: 1px #000)) {
+  .fl-404-code {
+    color: var(--fl-accent-soft-border);
+    filter: none;
+  }
+}
+
+@keyframes fl-404-pulse {
+  0%, 100% { opacity: 0.72; }
+  50%      { opacity: 1; }
+}
+
+/* ---- 请求路径回显（终端感） ---- */
+.fl-404-path {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 100%;
+  margin: 0 0 30px;
+  padding: 8px 18px;
+  border: 1px solid var(--fl-border);
+  border-radius: 999px;
+  background: var(--fl-card-bg-soft);
+  font-family: var(--fl-font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fl-muted);
+}
+
+.fl-404-path-label {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--fl-accent);
+}
+
+.fl-404-path code {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--fl-text-secondary);
+  background: none;
+  border: none;
+  padding: 0;
+  word-break: break-all;
+}
+
+.fl-404-path-status {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--fl-muted);
+  opacity: 0.85;
+}
+
+/* ---- 最近文章区 ---- */
+.fl-404-main {
+  padding-bottom: 24px;
+}
+
+.fl-404-section {
+  margin-top: 24px;
+}
+
+@media (max-width: 767px) {
+  .fl-404-hero { padding: 78px 16px 40px; }
+  .fl-404-path { font-size: 11.5px; gap: 8px; padding: 7px 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fl-404-code { animation: none; }
+}
