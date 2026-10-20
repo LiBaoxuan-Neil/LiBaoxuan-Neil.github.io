@@ -823,6 +823,9 @@ pre code {
 
 /* ============================================================
    系列页（/series/ 与各系列 Hub）
+   注：2026-10-20 起系列页改用 site-2026.css 的 .fl-shelf / .fl-row-step 体系，
+   此处的 .fl-series-hub-item / .fl-series-posts 已无模板引用，仅保留作参考。
+   .fl-page-head 仍被 /post/、taxonomy、搜索页使用，勿删。
    ============================================================ */
 .fl-page-head {
   padding: 92px 0 30px;

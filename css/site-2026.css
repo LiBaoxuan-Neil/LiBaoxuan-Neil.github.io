@@ -46,6 +46,48 @@
 [data-theme="dark"] .fl-glyph.tone-3 rect { fill: #b6e2e6; }
 .is-planned .fl-glyph { opacity: 0.42; }
 
+/* ---------- 呼吸灯（方案 B）----------
+   光只从标识的飞出块发出：只有导航标识与「更新中」的系列纹章带 .fl-live。
+   暗色：飞出块透明度 0.62→1 + 冷白光晕；亮色底加不了光，光晕压成品牌青的淡染。
+   全站统一 4.8s / cubic-bezier(.37,0,.63,1)，只动 opacity 与 transform。
+   详见 docs/prototype/breathing.html */
+:root { --fl-live-glow: rgba(14, 124, 134, 0.5); }
+[data-theme="dark"] { --fl-live-glow: rgba(200, 242, 245, 0.5); }
+
+.fl-live { position: relative; display: inline-grid; place-items: center; flex: none; }
+.fl-live-brand { width: 26px; height: 26px; }
+.fl-live-glyph { width: 20px; height: 20px; }
+.fl-live .fl-mark, .fl-live .fl-glyph { width: 100%; height: 100%; }
+.fl-live-halo {
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--fl-live-glow) 0%, transparent 66%);
+  animation: fl-breathe-halo 4.8s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
+.fl-live-glyph .fl-live-halo { inset: -7px; border-radius: 6px; }
+.fl-live .fl-mark-fly { animation: fl-breathe-tile 4.8s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+
+/* 呼吸只在 20px 的纹章上成立：14px 的上下文（侧栏系列、Hub 眉标）光晕会把它糊成焦点不实，
+   小尺寸一律静态，保持清晰。 */
+
+@keyframes fl-breathe-tile {
+  0%, 100% { opacity: 0.62; }
+  50% { opacity: 1; }
+}
+@keyframes fl-breathe-halo {
+  0%, 100% { opacity: 0.16; transform: scale(0.94); }
+  50% { opacity: 0.55; transform: scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fl-live .fl-mark-fly,
+  .fl-live-halo { animation: none; }
+  .fl-live-halo { opacity: 0.3; }
+  .fl-brand:hover .fl-mark-fly { transform: none; }
+}
+
 /* 导航品牌锁定 */
 .navbar-custom .navbar-brand.fl-brand {
   display: inline-flex;
@@ -71,6 +113,15 @@
   align-items: start;
 }
 .fl-main { min-width: 0; }
+/* 无侧栏页：单列居中。列宽由 --fl-col 控制，页脚靠 :has 跟随同一数值，
+   这样正文、分隔线、页脚横线右端始终对齐。
+   760px 用于系列页（列表行），704px 用于关于页（纯阅读，中文约 44 字/行）。 */
+body { --fl-col: 760px; }
+body:has(.fl-shell-narrow) { --fl-col: 704px; }
+.fl-shell-solo {
+  grid-template-columns: minmax(0, var(--fl-col));
+  justify-content: center;
+}
 
 /* ---------- Masthead ---------- */
 .fl-masthead { padding: 56px 0 36px; }
@@ -226,15 +277,126 @@
 }
 .fl-row-link:hover .fl-row-title { color: var(--fl-accent); }
 
-/* ---------- 系列条 ---------- */
-.fl-strip { margin-top: 60px; padding-top: 26px; border-top: 1px solid var(--fl-hair); }
-.fl-strip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 18px; }
-.fl-strip-item { display: flex; gap: 11px; text-decoration: none; color: inherit; }
-.fl-strip-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.fl-strip-name { font-size: 15px; font-weight: 500; color: var(--fl-ink); transition: color 0.16s; }
-.fl-strip-meta { font-size: 13px; color: var(--fl-ink-3); }
-.fl-strip-item:hover .fl-strip-name { color: var(--fl-accent); }
-.fl-strip-item.is-planned .fl-strip-name { color: var(--fl-ink-2); }
+/* ---------- 系列页（索引 + Hub） ---------- */
+.fl-masthead-series { padding-bottom: 10px; }
+.fl-masthead-series .fl-meta { margin-top: 24px; }
+.fl-masthead-series .fl-meta .fl-glyph { width: 14px; height: 14px; }
+.fl-eyebrow a { color: inherit; text-decoration: none; }
+.fl-eyebrow a:hover { color: var(--fl-accent); text-decoration: none; }
+.fl-eyebrow-sep { margin: 0 7px; opacity: 0.45; }
+.fl-series-status {
+  font-family: var(--fl-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--fl-accent);
+}
+.fl-series-status.is-planned { color: var(--fl-ink-3); }
+
+.fl-sec-note {
+  font-family: var(--fl-mono);
+  font-size: 12px;
+  color: var(--fl-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 索引页：系列书架行 */
+.fl-shelf-list { margin-top: 34px; }
+.fl-shelf-list .fl-sec-head { margin: 0 0 6px; }
+.fl-shelf {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  column-gap: 18px;
+  align-items: start;
+  padding: 20px 0 22px;
+  border-top: 1px solid var(--fl-hair);
+  text-decoration: none;
+  color: inherit;
+}
+.fl-shelf:last-child { border-bottom: 1px solid var(--fl-hair); }
+.fl-shelf-ord {
+  padding-top: 5px;
+  font-family: var(--fl-mono);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--fl-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.fl-shelf-body { display: block; min-width: 0; }
+.fl-shelf-head { display: flex; align-items: center; gap: 10px; }
+.fl-shelf-name {
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--fl-ink);
+  transition: color 0.16s;
+}
+.fl-shelf-desc {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--fl-ink-2);
+  max-width: 44em;
+}
+.fl-shelf-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  padding-top: 4px;
+  font-family: var(--fl-mono);
+  font-size: 12px;
+  color: var(--fl-ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.fl-shelf-status { font-size: 11px; letter-spacing: 0.08em; color: var(--fl-accent); }
+.fl-shelf.is-planned .fl-shelf-name { color: var(--fl-ink-2); }
+.fl-shelf.is-planned .fl-shelf-status { color: var(--fl-ink-3); }
+.fl-shelf:hover .fl-shelf-name { color: var(--fl-accent); }
+
+/* ---------- 标签索引 / 术语页 ---------- */
+/* 与系列书架同一套账本语法：名称左、计数右、行间 1px；两列各自收口 */
+.fl-tax-ledger {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 56px;
+  margin-top: 36px;
+}
+.fl-tax-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0 12px;
+  border-top: 1px solid var(--fl-hair);
+  text-decoration: none;
+  color: inherit;
+}
+.fl-tax-col .fl-tax-row:last-child { border-bottom: 1px solid var(--fl-hair); }
+.fl-tax-name { font-size: 15.5px; line-height: 1.5; color: var(--fl-ink); transition: color 0.16s; }
+.fl-tax-count {
+  flex: none;
+  font-family: var(--fl-mono);
+  font-size: 12px;
+  color: var(--fl-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.fl-tax-row:hover .fl-tax-name { color: var(--fl-accent); }
+
+/* 搜索页本身就在搜索，不需要「按 / 或 Ctrl K 唤起搜索」这句提示 */
+.fl-search--page .fl-search-tip { display: none; }
+
+/* Hub 页：序言 + 阅读顺序行 */
+.fl-prose-series { max-width: 44em; }
+.fl-prose-series p:first-child { margin-top: 26px; }
+.fl-row-step .fl-row-link { grid-template-columns: 44px minmax(0, 1fr) 62px; }
+.fl-row-ord {
+  font-family: var(--fl-mono);
+  font-size: 12.5px;
+  color: var(--fl-ink-3);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- 侧栏 ---------- */
 .fl-side { position: sticky; top: 92px; padding-top: 8px; }
@@ -275,9 +437,37 @@ html[data-lang="zh"] .fl-side-block h4 { letter-spacing: 0.02em; }
 .fl-side-label { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .fl-side-label .fl-glyph { width: 14px; height: 14px; }
 .fl-side-n { flex: none; font-family: var(--fl-mono); font-size: 12px; color: var(--fl-ink-3); }
+.fl-side-more {
+  margin-top: 8px;
+  padding-top: 8px;
+  font-size: 12.5px;
+  color: var(--fl-ink-3);
+}
 
-/* ---------- 关于页正文 ---------- */
-.fl-masthead-about { padding-bottom: 30px; }
+/* ---------- 关于页 ---------- */
+/* 名片区：左文右头像，底部 1px 收口（正文第一个 h2 因此不再画顶线） */
+.fl-masthead-about {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "id avatar";
+  column-gap: 48px;
+  align-items: start;
+  padding-bottom: 36px;
+  border-bottom: 1px solid var(--fl-hair);
+}
+.fl-about-id { grid-area: id; min-width: 0; }
+.fl-about-avatar {
+  grid-area: avatar;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 0 0 1px var(--fl-hair);
+}
+/* 注：全站眉标都用拉丁大写（Fragments of Logic / SERIES INDEX / ERROR 404），
+   不要往里塞中文——11.5px + 0.2em 字距的中文两个字会糊成一团。 */
+
 .fl-meta {
   display: flex;
   align-items: center;
@@ -290,18 +480,22 @@ html[data-lang="zh"] .fl-side-block h4 { letter-spacing: 0.02em; }
 .fl-meta a { color: var(--fl-ink-2); text-decoration: none; }
 .fl-meta a:hover { color: var(--fl-accent); text-decoration: none; }
 
-.fl-prose { max-width: 704px; }
+/* 正文与名片区同宽（760），所有横线右端对齐；不再单独收窄到 704 */
+.fl-prose { max-width: none; }
+/* 小标签：等宽弱化，让位给下方首段（每段第一句是本节的主张，所以更亮更大） */
 .fl-prose h2 {
-  margin: 54px 0 0;
+  margin: 56px 0 0;
   padding-top: 22px;
   border-top: 1px solid var(--fl-hair);
-  font-size: 13.5px;
+  font-family: var(--fl-mono);
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  line-height: 1.4;
+  letter-spacing: 0.12em;
+  line-height: 1.5;
   color: var(--fl-ink-2);
 }
-.fl-prose > h2:first-child { margin-top: 6px; }
+/* 名片区已有底线，第一个小标签不再重复画线 */
+.fl-prose > h2:first-child { margin-top: 46px; padding-top: 0; border-top: 0; }
 .fl-prose p { margin: 14px 0 0; font-size: 16px; line-height: 1.9; color: var(--fl-ink-2); }
 .fl-prose h2 + p { margin-top: 18px; font-size: 17px; line-height: 1.85; color: var(--fl-ink); }
 .fl-prose a { color: var(--fl-accent); text-decoration: none; border-bottom: 0; }
@@ -361,6 +555,15 @@ html[data-lang="zh"] .fl-side-block h4 { letter-spacing: 0.02em; }
 
 /* ---------- 页脚 ---------- */
 footer { text-align: left; padding: 0; background: none; }
+/* 单列页（系列页）：页脚跟随正文列宽，避免横线比内容宽出一截。
+   :has 不支持的浏览器退化为整宽页脚，不影响可读性。 */
+@media (min-width: 981px) {
+  body:has(.fl-shell-solo) footer .fl-foot {
+    max-width: var(--fl-col);
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
 .fl-foot {
   display: flex;
   align-items: center;
@@ -393,7 +596,34 @@ footer { text-align: left; padding: 0; background: none; }
   .fl-row-time { grid-area: time; }
   .fl-row-title { grid-area: title; margin-top: 2px; }
   .fl-row-desc { grid-area: desc; margin-top: 2px; -webkit-line-clamp: 2; }
-  .fl-strip-grid { grid-template-columns: 1fr; gap: 18px; }
+  .fl-row-step .fl-row-link {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "date time" "title title" "desc desc";
+    gap: 4px 14px;
+  }
+  .fl-row-step .fl-row-ord { grid-area: date; }
+  .fl-shelf { grid-template-columns: minmax(0, 1fr); }
+  .fl-shelf-ord { display: none; }
+  .fl-shelf-name { font-size: 16.5px; }
+  /* 窄屏下把「篇数 · 状态」放成摘要下的一行小注，摘要可占满整行 */
+  .fl-shelf-meta {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 10px;
+    padding-top: 0;
+    margin-top: 9px;
+  }
+  .fl-masthead-about {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "avatar" "id";
+    row-gap: 22px;
+    column-gap: 0;
+  }
+  .fl-about-avatar { width: 64px; height: 64px; }
+  /* 标签账本窄屏堆成一列：第二块的第一行不要重复画顶线 */
+  .fl-tax-ledger { grid-template-columns: minmax(0, 1fr); column-gap: 0; }
+  .fl-tax-col + .fl-tax-col .fl-tax-row:first-child { border-top: 0; }
   .fl-side {
     position: static;
     margin-top: 52px;
@@ -427,6 +657,18 @@ footer { text-align: left; padding: 0; background: none; }
 [data-theme="dark"] .fl-page .fl-meta a:hover { color: var(--fl-accent) !important; }
 [data-theme="dark"] .fl-page .fl-side-item { color: var(--fl-ink-2) !important; }
 [data-theme="dark"] .fl-page .fl-side-item:hover { color: var(--fl-accent) !important; }
+[data-theme="dark"] .fl-page .fl-side-more { color: var(--fl-ink-3) !important; }
+[data-theme="dark"] .fl-page .fl-side-more:hover { color: var(--fl-accent) !important; }
 [data-theme="dark"] .fl-page .fl-empty-link { color: var(--fl-accent) !important; }
+[data-theme="dark"] .fl-page a.fl-shelf { color: inherit !important; }
+[data-theme="dark"] .fl-page a.fl-shelf:hover { color: inherit !important; }
+[data-theme="dark"] .fl-page .fl-shelf-name { color: var(--fl-ink) !important; }
+[data-theme="dark"] .fl-page .fl-shelf.is-planned .fl-shelf-name { color: var(--fl-ink-2) !important; }
+[data-theme="dark"] .fl-page .fl-shelf:hover .fl-shelf-name { color: var(--fl-accent) !important; }
+[data-theme="dark"] .fl-page .fl-eyebrow a { color: inherit !important; }
+[data-theme="dark"] .fl-page .fl-eyebrow a:hover { color: var(--fl-accent) !important; }
+[data-theme="dark"] .fl-page a.fl-tax-row { color: inherit !important; }
+[data-theme="dark"] .fl-page .fl-tax-name { color: var(--fl-ink) !important; }
+[data-theme="dark"] .fl-page .fl-tax-row:hover .fl-tax-name { color: var(--fl-accent) !important; }
 [data-theme="dark"] footer .fl-foot-links a { color: var(--fl-ink-3) !important; }
 [data-theme="dark"] footer .fl-foot-links a:hover { color: var(--fl-accent) !important; }
