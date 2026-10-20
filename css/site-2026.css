@@ -672,3 +672,211 @@ footer { text-align: left; padding: 0; background: none; }
 [data-theme="dark"] .fl-page .fl-tax-row:hover .fl-tax-name { color: var(--fl-accent) !important; }
 [data-theme="dark"] footer .fl-foot-links a { color: var(--fl-ink-3) !important; }
 [data-theme="dark"] footer .fl-foot-links a:hover { color: var(--fl-accent) !important; }
+
+/* ============================================================
+   文章目录抽屉（CATALOG）
+   - 右下角浮动按钮 → 右侧滑出面板
+   - 列表来自 .TableOfContents，层级靠嵌套 ul 表达
+   - 唯一装饰仍是 1px 线与强调色，不引入新配色
+   ============================================================ */
+:root {
+  --fl-toc-w: 344px;
+  --fl-toc-scrim: rgba(12, 18, 26, 0.16);
+}
+[data-theme="dark"] { --fl-toc-scrim: rgba(2, 6, 14, 0.34); }
+
+/* ---------- 浮动按钮 ---------- */
+.fl-toc-btn {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 1040;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: var(--fl-accent);
+  color: #ffffff;
+  box-shadow: 0 8px 22px rgba(10, 30, 50, 0.22), 0 1px 2px rgba(10, 30, 50, 0.18);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(10px) scale(0.94);
+  pointer-events: none;
+  transition: opacity 0.26s ease, transform 0.26s ease, box-shadow 0.26s ease, background-color 0.26s ease;
+}
+.fl-toc-btn.is-visible { opacity: 1; transform: none; pointer-events: auto; }
+.fl-toc-btn:hover, .fl-toc-btn:focus-visible {
+  background: var(--fl-accent-hover);
+  box-shadow: 0 10px 26px rgba(10, 30, 50, 0.3), 0 2px 4px rgba(10, 30, 50, 0.2);
+  transform: translateY(-1px);
+  outline: none;
+}
+.fl-toc-btn:focus-visible { box-shadow: 0 0 0 3px var(--fl-accent-soft-border), 0 8px 22px rgba(10, 30, 50, 0.22); }
+.fl-toc-btn .fl-toc-icon { display: block; }
+/* 暗色：主题的 [data-theme="dark"] button { background:#4f8cff !important } 会整颗染蓝，
+   浮动按钮与关闭按钮都要逐条收回 */
+[data-theme="dark"] .fl-toc-btn,
+[data-theme="dark"] .fl-toc-btn:hover,
+[data-theme="dark"] .fl-toc-btn:focus-visible {
+  background: var(--fl-accent) !important;
+  border-color: transparent !important;
+  color: #06131c !important;
+}
+[data-theme="dark"] .fl-toc-btn:hover { background: var(--fl-accent-hover) !important; }
+
+/* ---------- 抽屉骨架 ---------- */
+.fl-toc { position: fixed; inset: 0; z-index: 1090; }
+.fl-toc[hidden] { display: none !important; }
+
+.fl-toc-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--fl-toc-scrim);
+  opacity: 0;
+  transition: opacity 0.32s ease;
+}
+
+.fl-toc-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(var(--fl-toc-w), 88vw);
+  background: var(--fl-card-bg);
+  border-left: 1px solid var(--fl-hair-strong);
+  box-shadow: -20px 0 50px rgba(6, 16, 34, 0.14);
+  transform: translateX(101%);
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+}
+[data-theme="dark"] .fl-toc-panel {
+  box-shadow: -20px 0 50px rgba(0, 0, 0, 0.5);
+}
+
+.fl-toc.is-open .fl-toc-scrim { opacity: 1; }
+.fl-toc.is-open .fl-toc-panel { transform: none; }
+
+body.fl-toc-lock { overflow: hidden; }
+
+/* ---------- 头部 ---------- */
+.fl-toc-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 24px 20px 12px 24px;
+}
+
+.fl-toc-title {
+  font-family: var(--fl-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fl-ink-3);
+}
+
+.fl-toc-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fl-ink-3);
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+.fl-toc-close:hover, .fl-toc-close:focus-visible {
+  color: var(--fl-ink);
+  background: var(--fl-hair);
+  outline: none;
+}
+
+/* ---------- 条目 ---------- */
+.fl-toc-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 20px 48px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  outline: none;
+}
+.fl-toc-nav::-webkit-scrollbar { width: 6px; }
+.fl-toc-nav::-webkit-scrollbar-thumb { background: var(--fl-hair-strong); border-radius: 3px; }
+
+.fl-toc-nav ul { margin: 0; padding: 0; list-style: none; }
+
+.fl-toc-nav a {
+  display: block;
+  padding: 7px 0;
+  font-size: 13.5px;
+  line-height: 1.62;
+  color: var(--fl-ink-2);
+  text-decoration: none;
+  border: 0;
+  transition: color 0.18s ease;
+}
+.fl-toc-nav a:hover { color: var(--fl-accent); text-decoration: none; }
+
+/* 二级目录（h2）：稍大，颜色按层级退一档，避免整块发白 */
+.fl-toc-nav > ul > li > a { font-size: 14px; color: var(--fl-ink-2); }
+.fl-toc-nav > ul > li + li { margin-top: 10px; }
+
+/* 三级目录（h3）：缩进 + 左侧竖线 */
+.fl-toc-nav ul ul {
+  margin: 2px 0 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--fl-hair-strong);
+}
+.fl-toc-nav ul ul a {
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--fl-ink-3);
+}
+
+.fl-toc-nav a.is-active { color: var(--fl-accent); }
+.fl-toc-nav ul ul a.is-active { color: var(--fl-accent); }
+.fl-toc-nav > ul > li > a.is-active { font-weight: 500; }
+
+/* 暗色：主题的 a { color: #7fb4ff !important } 会染色，逐条收回 */
+[data-theme="dark"] .fl-toc-close,
+[data-theme="dark"] .fl-toc-close:focus-visible {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--fl-ink-3) !important;
+}
+[data-theme="dark"] .fl-toc-close:hover {
+  background: var(--fl-hair) !important;
+  color: var(--fl-ink) !important;
+}
+
+[data-theme="dark"] .fl-toc-nav a { color: var(--fl-ink-2) !important; }
+[data-theme="dark"] .fl-toc-nav > ul > li > a { color: var(--fl-ink-2) !important; }
+[data-theme="dark"] .fl-toc-nav ul ul a { color: var(--fl-ink-3) !important; }
+[data-theme="dark"] .fl-toc-nav a:hover,
+[data-theme="dark"] .fl-toc-nav a.is-active { color: var(--fl-accent) !important; }
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 640px) {
+  .fl-toc-btn { right: 16px; bottom: 16px; width: 46px; height: 46px; }
+  .fl-toc-panel { width: min(320px, 86vw); }
+  .fl-toc-head { padding: 20px 16px 10px 20px; }
+  .fl-toc-nav { padding: 4px 16px 40px 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fl-toc-btn, .fl-toc-panel, .fl-toc-scrim { transition: none !important; }
+}
+
+@media print {
+  .fl-toc-btn, .fl-toc { display: none !important; }
+}
